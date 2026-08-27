@@ -1,0 +1,934 @@
+<title>Tenant Provisioning Field Guide</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #f4f4ef;
+    --paper-raised: #ffffff;
+    --ink: #1c2226;
+    --ink-soft: #3a4247;
+    --steel: #5b6b73;
+    --steel-dim: #8b969b;
+    --line: #dbdcd2;
+    --line-strong: #c3c5b8;
+    --signal: #1f7a5c;
+    --signal-ink: #0f5b41;
+    --signal-tint: #e3efe9;
+    --caution: #a3661f;
+    --caution-ink: #7a4c17;
+    --caution-tint: #f6ecdc;
+    --code-bg: #1c2226;
+    --code-ink: #e8e7df;
+    --code-accent: #7fd9b9;
+    --code-muted: #8b969b;
+    --shadow: 0 1px 2px rgba(28, 34, 38, 0.06), 0 8px 24px rgba(28, 34, 38, 0.05);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #14181b;
+      --paper-raised: #1b2124;
+      --ink: #e8e7df;
+      --ink-soft: #c2c5bd;
+      --steel: #93a0a5;
+      --steel-dim: #647178;
+      --line: #2b3236;
+      --line-strong: #3a4348;
+      --signal: #3fa98a;
+      --signal-ink: #6fcaad;
+      --signal-tint: #16241f;
+      --caution: #d89a4a;
+      --caution-ink: #e8b579;
+      --caution-tint: #2a2117;
+      --code-bg: #0e1112;
+      --code-ink: #e8e7df;
+      --code-accent: #7fd9b9;
+      --code-muted: #7e8a90;
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.35);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --paper: #14181b;
+    --paper-raised: #1b2124;
+    --ink: #e8e7df;
+    --ink-soft: #c2c5bd;
+    --steel: #93a0a5;
+    --steel-dim: #647178;
+    --line: #2b3236;
+    --line-strong: #3a4348;
+    --signal: #3fa98a;
+    --signal-ink: #6fcaad;
+    --signal-tint: #16241f;
+    --caution: #d89a4a;
+    --caution-ink: #e8b579;
+    --caution-tint: #2a2117;
+    --code-bg: #0e1112;
+    --code-ink: #e8e7df;
+    --code-accent: #7fd9b9;
+    --code-muted: #7e8a90;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.35);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "IBM Plex Sans", -apple-system, "Segoe UI", sans-serif;
+    font-size: 16px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  ::selection { background: var(--signal-tint); color: var(--signal-ink); }
+
+  .shell {
+    display: grid;
+    grid-template-columns: 260px minmax(0, 1fr);
+    max-width: 1180px;
+    margin: 0 auto;
+    align-items: start;
+  }
+
+  @media (max-width: 900px) {
+    .shell { grid-template-columns: 1fr; }
+  }
+
+  /* ---------- Rail ---------- */
+  .rail {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    padding: 2.75rem 1.5rem 2rem 2rem;
+    border-right: 1px solid var(--line);
+  }
+
+  @media (max-width: 900px) {
+    .rail {
+      position: relative;
+      height: auto;
+      border-right: none;
+      border-bottom: 1px solid var(--line);
+      padding: 1.75rem 1.5rem 1.25rem;
+    }
+  }
+
+  .rail-mark {
+    font-family: "Barlow Condensed", sans-serif;
+    font-weight: 700;
+    font-size: 1.5rem;
+    letter-spacing: 0.01em;
+    color: var(--ink);
+    text-transform: uppercase;
+    line-height: 1.1;
+  }
+
+  .rail-mark small {
+    display: block;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.7rem;
+    font-weight: 400;
+    letter-spacing: 0.08em;
+    color: var(--steel);
+    text-transform: none;
+    margin-top: 0.35rem;
+  }
+
+  .rail nav {
+    margin-top: 2.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+  }
+
+  @media (max-width: 900px) {
+    .rail nav {
+      margin-top: 1.25rem;
+      flex-direction: row;
+      flex-wrap: wrap;
+      gap: 0.4rem 0.7rem;
+    }
+  }
+
+  .rail a {
+    display: flex;
+    align-items: baseline;
+    gap: 0.55rem;
+    padding: 0.4rem 0.5rem;
+    margin-left: -0.5rem;
+    border-radius: 3px;
+    text-decoration: none;
+    color: var(--steel);
+    font-size: 0.88rem;
+    transition: color 0.15s ease, background 0.15s ease;
+  }
+
+  .rail a:hover { color: var(--ink); background: var(--paper-raised); }
+
+  .rail a.active {
+    color: var(--signal-ink);
+    background: var(--signal-tint);
+    font-weight: 600;
+  }
+
+  .rail a .num {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.75rem;
+    color: var(--steel-dim);
+    min-width: 1.3em;
+  }
+
+  .rail a.active .num { color: var(--signal); }
+
+  /* ---------- Main ---------- */
+  main {
+    padding: 3.25rem clamp(1.25rem, 4vw, 4rem) 6rem;
+    min-width: 0;
+  }
+
+  .doc-head {
+    max-width: 44rem;
+    margin-bottom: 3rem;
+    padding-bottom: 2rem;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .eyebrow {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.75rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--signal);
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+
+  .eyebrow::before {
+    content: "";
+    width: 1.6rem;
+    height: 1px;
+    background: var(--signal);
+  }
+
+  h1.doc-title {
+    font-family: "Barlow Condensed", sans-serif;
+    font-weight: 700;
+    font-size: clamp(2.3rem, 5vw, 3.1rem);
+    line-height: 1.02;
+    letter-spacing: 0.005em;
+    margin: 0.6rem 0 0.9rem;
+    text-wrap: balance;
+    color: var(--ink);
+  }
+
+  .doc-dek {
+    font-size: 1.08rem;
+    color: var(--ink-soft);
+    max-width: 40rem;
+    margin: 0 0 1.1rem;
+  }
+
+  .meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.4rem;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.78rem;
+    color: var(--steel);
+  }
+
+  .meta-row strong { color: var(--ink-soft); font-weight: 600; }
+
+  .not-shipped {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-top: 1.1rem;
+    padding: 0.4rem 0.75rem;
+    border: 1px solid var(--line-strong);
+    border-radius: 3px;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.76rem;
+    color: var(--steel);
+  }
+
+  .not-shipped::before { content: "●"; color: var(--steel-dim); font-size: 0.6rem; }
+
+  /* ---------- Prose ---------- */
+  section.phase {
+    max-width: 44rem;
+    margin-bottom: 3.75rem;
+    scroll-margin-top: 2rem;
+  }
+
+  .phase-head {
+    display: flex;
+    align-items: baseline;
+    gap: 1rem;
+    margin-bottom: 1.1rem;
+  }
+
+  .phase-num {
+    font-family: "Barlow Condensed", sans-serif;
+    font-weight: 700;
+    font-size: 2.5rem;
+    color: var(--line-strong);
+    line-height: 1;
+    min-width: 2ch;
+  }
+
+  h2.phase-title {
+    font-family: "Barlow Condensed", sans-serif;
+    font-weight: 600;
+    font-size: 1.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.01em;
+    color: var(--ink);
+    margin: 0;
+    text-wrap: balance;
+  }
+
+  h3 {
+    font-family: "Barlow Condensed", sans-serif;
+    font-weight: 600;
+    font-size: 1.2rem;
+    letter-spacing: 0.01em;
+    color: var(--ink);
+    margin: 1.8rem 0 0.7rem;
+  }
+
+  p { margin: 0 0 1rem; max-width: 62ch; }
+  ul, ol { margin: 0 0 1rem; padding-left: 1.3rem; }
+  li { margin-bottom: 0.4rem; max-width: 60ch; }
+  li::marker { color: var(--steel-dim); }
+
+  strong { color: var(--ink); font-weight: 600; }
+
+  a.inline-link {
+    color: var(--signal-ink);
+    text-decoration-color: var(--signal);
+    text-underline-offset: 0.15em;
+  }
+
+  code {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.86em;
+    background: var(--paper-raised);
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    padding: 0.05em 0.35em;
+    color: var(--signal-ink);
+  }
+
+  /* ---------- Callouts ---------- */
+  .callout {
+    display: flex;
+    gap: 0.9rem;
+    margin: 1.3rem 0 1.6rem;
+    padding: 1.1rem 1.3rem;
+    background: var(--caution-tint);
+    border-left: 3px solid var(--caution);
+    border-radius: 0 4px 4px 0;
+  }
+
+  .callout .flag {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--caution-ink);
+    font-weight: 600;
+    white-space: nowrap;
+    padding-top: 0.15rem;
+  }
+
+  .callout p, .callout ul { margin: 0; max-width: none; }
+  .callout p + p { margin-top: 0.6rem; }
+  .callout code {
+    background: var(--paper-raised);
+    border-color: var(--line-strong);
+  }
+
+  /* ---------- Tables ---------- */
+  .table-wrap { overflow-x: auto; margin: 1.2rem 0 1.6rem; border: 1px solid var(--line); border-radius: 5px; }
+
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    min-width: 32rem;
+    font-size: 0.88rem;
+    background: var(--paper-raised);
+  }
+
+  th, td {
+    text-align: left;
+    padding: 0.65rem 0.9rem;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+  }
+
+  th {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--steel);
+    background: var(--paper);
+    font-weight: 600;
+  }
+
+  tr:last-child td { border-bottom: none; }
+  td code, th code { white-space: nowrap; }
+
+  /* ---------- Code blocks ---------- */
+  .snippet {
+    margin: 1rem 0 1.6rem;
+    border-radius: 6px;
+    overflow: hidden;
+    box-shadow: var(--shadow);
+  }
+
+  .snippet-label {
+    background: var(--code-bg);
+    color: var(--code-muted);
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 0.55rem 1rem 0;
+  }
+
+  pre {
+    margin: 0;
+    background: var(--code-bg);
+    color: var(--code-ink);
+    padding: 0.7rem 1.1rem 1.1rem;
+    overflow-x: auto;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.82rem;
+    line-height: 1.6;
+  }
+
+  pre .cm { color: var(--code-muted); }
+  pre .id { color: var(--code-accent); }
+
+  /* ---------- Checklist ---------- */
+  .checklist { list-style: none; padding-left: 0; margin: 1.1rem 0 1.6rem; }
+
+  .checklist li {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.7rem;
+    padding: 0.55rem 0;
+    border-bottom: 1px dashed var(--line);
+    max-width: none;
+  }
+
+  .checklist li:last-child { border-bottom: none; }
+
+  .checklist input[type="checkbox"] {
+    appearance: none;
+    width: 1.1rem;
+    height: 1.1rem;
+    margin-top: 0.15rem;
+    flex-shrink: 0;
+    border: 1.5px solid var(--line-strong);
+    border-radius: 3px;
+    display: grid;
+    place-content: center;
+    cursor: pointer;
+    background: var(--paper-raised);
+  }
+
+  .checklist input[type="checkbox"]::before {
+    content: "";
+    width: 0.62rem;
+    height: 0.62rem;
+    transform: scale(0);
+    background: var(--signal);
+    clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 46% 63%);
+  }
+
+  .checklist input[type="checkbox"]:checked::before { transform: scale(1); }
+  .checklist input[type="checkbox"]:checked { border-color: var(--signal); }
+  .checklist input[type="checkbox"]:focus-visible { outline: 2px solid var(--signal); outline-offset: 2px; }
+
+  .checklist label {
+    font-size: 0.96rem;
+    color: var(--ink-soft);
+    cursor: pointer;
+  }
+
+  .checklist input:checked + label {
+    color: var(--steel-dim);
+    text-decoration: line-through;
+    text-decoration-color: var(--line-strong);
+  }
+
+  /* ---------- Values card grid ---------- */
+  .value-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+    gap: 0.9rem;
+    margin: 1.2rem 0 1.6rem;
+  }
+
+  .value-card {
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 0.95rem 1.1rem;
+    background: var(--paper-raised);
+  }
+
+  .value-card .k {
+    display: block;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.78rem;
+    color: var(--signal-ink);
+    margin-bottom: 0.3rem;
+    word-break: break-word;
+  }
+
+  .value-card .v {
+    font-size: 0.87rem;
+    color: var(--steel);
+    margin: 0;
+  }
+
+  footer.doc-foot {
+    max-width: 44rem;
+    padding-top: 2rem;
+    border-top: 1px solid var(--line);
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.76rem;
+    color: var(--steel-dim);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { scroll-behavior: auto !important; transition: none !important; }
+  }
+
+  html { scroll-behavior: smooth; }
+</style>
+
+<div class="shell">
+  <aside class="rail">
+    <div class="rail-mark">
+      Field Guide
+      <small>Tenant provisioning</small>
+    </div>
+    <nav id="railnav">
+      <a href="#top" class="active"><span class="num">·</span> Overview</a>
+      <a href="#phase-1"><span class="num">01</span> App registrations</a>
+      <a href="#phase-2"><span class="num">02</span> App Service env</a>
+      <a href="#phase-3"><span class="num">03</span> Web-config doc</a>
+      <a href="#phase-4"><span class="num">04</span> Alias-config doc</a>
+      <a href="#phase-5"><span class="num">05</span> SQL access</a>
+      <a href="#phase-6"><span class="num">06</span> Build &amp; deploy</a>
+      <a href="#phase-7"><span class="num">07</span> Verify</a>
+      <a href="#open"><span class="num">·</span> Open questions</a>
+    </nav>
+  </aside>
+
+  <main>
+    <div class="doc-head" id="top">
+      <div class="eyebrow">Ops runbook</div>
+      <h1 class="doc-title">New tenant, same app: a provisioning field guide</h1>
+      <p class="doc-dek">Every step required to stand up this application for a client on a
+        different Azure tenant — verified directly against source, not memory. Written for the
+        person doing the Azure Portal work and the person doing the build.</p>
+      <div class="meta-row">
+        <span><strong>Investigated</strong> 2026-08-27</span>
+        <span><strong>Scope</strong> pilot / new client tenant</span>
+        <span><strong>Applies to</strong> this repo's Dockerfile + scripts/</span>
+      </div>
+      <div class="not-shipped">Working checklist — not shipped documentation</div>
+    </div>
+
+    <section class="phase" id="thesis" style="scroll-margin-top: 2rem;">
+      <h2 class="phase-title" style="margin-bottom: 1rem;">The one fact that changes everything else</h2>
+      <div class="callout">
+        <span class="flag">Read first</span>
+        <div>
+          <p><strong><code>NEXT_PUBLIC_*</code> values are baked into the Docker image at build
+            time, not read at runtime.</strong> This is a hard Next.js constraint. Concretely:
+            <code>NEXT_PUBLIC_TENANT_ID</code>, <code>NEXT_PUBLIC_CLIENTAPP_CLIENT_ID</code>,
+            <code>NEXT_PUBLIC_API_SCOPE</code>, and <code>NEXT_PUBLIC_CLIENT_LOOPBACK_URL</code>
+            all get compiled directly into the client-side JS bundle.</p>
+          <p>You cannot take the image already built for the current tenant and point it at a
+            different tenant's App Service by changing Application Settings — the client bundle
+            would still try to sign in against the original tenant/app registration. A new tenant
+            needs a <strong>freshly built image</strong>, from this same source, using
+            <em>their own</em> <code>.env.production.local</code>.</p>
+        </div>
+      </div>
+      <p>Everything else — <code>AZURE_TENANT_ID</code>, <code>AZURE_CLIENT_ID</code>,
+        <code>AZURE_CLIENT_SECRET</code>, every <code>COSMOS_*</code>, every
+        <code>DB_*</code>/<code>AZURE_SQL_*</code>, <code>SQL_USE_AZURE_AD</code>,
+        <code>COSMOS_USE_MANAGED_IDENTITY</code>, <code>REPORTS_ALLOWED_HOSTS</code> — is read from
+        <code>process.env</code> at <strong>runtime</strong>. Those genuinely can live purely as
+        Azure App Service Application Settings, no rebuild needed.</p>
+    </section>
+
+    <section class="phase" id="phase-1">
+      <div class="phase-head">
+        <span class="phase-num">01</span>
+        <h2 class="phase-title">Azure AD app registrations</h2>
+      </div>
+      <p>Two registrations, in the <strong>new tenant</strong>, mirroring the split this project
+        already went through once — get it right from day one instead of repeating the old
+        single-registration mistake.</p>
+
+      <h3>1a · SPA registration — public client, sign-in only, no secret</h3>
+      <ul>
+        <li>Redirect URI (SPA platform): the new tenant's real App Service URL once known, e.g.
+          <code>https://&lt;their-app-name&gt;.azurewebsites.net</code> — and
+          <code>http://localhost:3000</code> if anyone will run this checkout locally against
+          their tenant.</li>
+        <li>No client secret. Nothing else non-default needed.</li>
+      </ul>
+      <p><strong>Record:</strong> Tenant ID and Application (client) ID.</p>
+
+      <h3>1b · API registration — confidential client, the JWT audience</h3>
+      <ul>
+        <li><strong>Expose an API</strong> → set an Application ID URI (the default
+          <code>api://&lt;api-client-id&gt;</code> is fine) → add a scope named exactly
+          <code>access_as_user</code>.</li>
+        <li><strong>Certificates &amp; secrets</strong> → a client secret only if local dev needs
+          the <code>DefaultAzureCredential</code> fallback path — production should use Managed
+          Identity instead and can leave this unset.</li>
+        <li>Back on the SPA registration → <strong>API permissions</strong> → add this
+          registration's <code>access_as_user</code> delegated permission → grant admin consent.</li>
+      </ul>
+      <div class="callout">
+        <span class="flag">Scope check</span>
+        <p>App Roles are <strong>not required</strong> for this app to function — the access
+          token's <code>roles</code> claim is read and displayed on <code>/profile</code>, but
+          nothing currently branches on it. Skip App Roles unless the new tenant specifically asks
+          for role display.</p>
+      </div>
+
+      <h3>What comes out of this phase</h3>
+      <div class="value-grid">
+        <div class="value-card"><span class="k">NEXT_PUBLIC_TENANT_ID</span><p class="v">New tenant's Tenant ID <em>(build-time)</em></p></div>
+        <div class="value-card"><span class="k">AZURE_TENANT_ID</span><p class="v">Same Tenant ID <em>(runtime)</em></p></div>
+        <div class="value-card"><span class="k">NEXT_PUBLIC_CLIENTAPP_CLIENT_ID</span><p class="v">SPA registration's Client ID <em>(build-time)</em></p></div>
+        <div class="value-card"><span class="k">AZURE_CLIENT_ID</span><p class="v">API registration's Client ID <em>(runtime — the JWT audience)</em></p></div>
+        <div class="value-card"><span class="k">NEXT_PUBLIC_API_SCOPE</span><p class="v"><code>api://&lt;api-client-id&gt;/access_as_user</code> <em>(build-time)</em></p></div>
+        <div class="value-card"><span class="k">AZURE_CLIENT_SECRET</span><p class="v">API registration's secret — dev-only <em>(runtime)</em></p></div>
+        <div class="value-card"><span class="k">NEXT_PUBLIC_CLIENT_LOOPBACK_URL</span><p class="v">The App Service's real URL, once known <em>(build-time)</em></p></div>
+      </div>
+    </section>
+
+    <section class="phase" id="phase-2">
+      <div class="phase-head">
+        <span class="phase-num">02</span>
+        <h2 class="phase-title">App Service environment</h2>
+      </div>
+      <p>Source of truth for the full variable list is <code>.env.example</code> in the repo root
+        — if this table and that file ever disagree, the file wins.</p>
+
+      <h3>Build-time only</h3>
+      <p>Baked into the image when it's built. Cannot be changed by Application Settings
+        afterward — must be correct in the <em>new tenant's own</em>
+        <code>.env.production.local</code> before building.</p>
+      <ul>
+        <li><code>NEXT_PUBLIC_TENANT_ID</code>, <code>NEXT_PUBLIC_CLIENTAPP_CLIENT_ID</code>,
+          <code>NEXT_PUBLIC_API_SCOPE</code>, <code>NEXT_PUBLIC_CLIENT_LOOPBACK_URL</code> — from
+          Phase 01.</li>
+        <li><code>NEXT_PUBLIC_APP_NAME</code> / <code>_VERSION</code> / <code>_BUILD</code> /
+          <code>_BUILD_VERSION</code> / <code>_DESCRIPTION</code>,
+          <code>NEXT_PUBLIC_BG_IMAGE_DARK</code> / <code>_LIGHT</code>,
+          <code>NEXT_PUBLIC_DARK_PROFILE_BG</code> / <code>_LIGHT_PROFILE_BG</code> — cosmetic;
+          the profile-background pair is optional and falls back to a default image if blank.</li>
+      </ul>
+
+      <h3>Runtime — App Service → Configuration → Application Settings</h3>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Setting</th><th>Required?</th><th>Notes</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>AZURE_TENANT_ID</code></td><td>Yes</td><td>Same as <code>NEXT_PUBLIC_TENANT_ID</code></td></tr>
+            <tr><td><code>AZURE_CLIENT_ID</code></td><td>Yes</td><td>The API registration's client ID — middleware throws at startup if this or the tenant ID is missing</td></tr>
+            <tr><td><code>AZURE_CLIENT_SECRET</code></td><td>No (prod)</td><td>Only used by the dev-mode credential fallback. Production should use Managed Identity and a Key Vault reference instead</td></tr>
+            <tr><td><code>COSMOS_ENDPOINT</code> / <code>COSMOS_KEY</code></td><td>Yes, unless Managed Identity</td><td>New tenant's own Cosmos account</td></tr>
+            <tr><td><code>COSMOS_USE_MANAGED_IDENTITY</code></td><td>No</td><td>Requires enabling a Managed Identity on the App Service + granting it a Cosmos data-plane role. Simpler for a pilot: skip, use the key</td></tr>
+            <tr><td><code>COSMOS_DATABASE_ID</code></td><td>Yes</td><td>Your choice of name — see Phase 03</td></tr>
+            <tr><td><code>COSMOS_CONTAINER</code></td><td>Yes</td><td>Your choice of name — holds both config documents (Phase 03 + 04)</td></tr>
+            <tr><td><code>COSMOS_DOCUMENT_ID</code></td><td>No</td><td>Defaults to <code>sidebar-config</code> if unset</td></tr>
+            <tr><td><code>DB_USER</code> / <code>_PASSWORD</code> / <code>_SERVER</code> / <code>_NAME</code></td><td>No</td><td>A no-alias fallback only — most SQL connections resolve per-report from the alias document instead (Phase 04/05). Safe to leave unset for a pilot</td></tr>
+            <tr><td><code>SQL_USE_AZURE_AD</code></td><td>No</td><td>"true" switches <em>all</em> SQL connections to Managed Identity, overriding any alias's own sqUser/sqPassword — read Phase 05 before enabling</td></tr>
+            <tr><td><code>COSMOS_LAB_DATABASE</code> / <code>_CONTAINER</code></td><td>No</td><td>Dev-only benchmark lab — skip for a pilot</td></tr>
+            <tr><td><code>REPORTS_ALLOWED_HOSTS</code></td><td>Only if any report is API-type</td><td>Comma-separated hostname allowlist — an API report whose endpoint host isn't listed is rejected</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="phase" id="phase-3">
+      <div class="phase-head">
+        <span class="phase-num">03</span>
+        <h2 class="phase-title">Cosmos — the web-config document</h2>
+      </div>
+      <p><strong>Container, once:</strong> database — any name (→ <code>COSMOS_DATABASE_ID</code>).
+        Container — any name (→ <code>COSMOS_CONTAINER</code>).</p>
+      <div class="callout">
+        <span class="flag">Simplify</span>
+        <p><strong>Partition key path: use <code>/id</code>.</strong> The existing production
+          container uses a redundant same-named field as its partition key — purely a historical
+          choice, not a code requirement. The point-read only ever needs the partition key
+          <em>value</em> to equal the document's own <code>id</code>; <code>/id</code> gets the
+          same behavior with one less field to maintain.</p>
+      </div>
+      <p>Document, once — <code>id</code> must match <code>COSMOS_DOCUMENT_ID</code> (or literally
+        <code>sidebar-config</code> if that's left unset):</p>
+      <div class="snippet">
+        <div class="snippet-label">cosmos · sidebar document</div>
+        <pre><span class="cm">// id must equal COSMOS_DOCUMENT_ID (or "sidebar-config" if unset)</span>
+{
+  "id": <span class="id">"sidebar-config"</span>,
+  "variables": [],
+  "menu": [
+    {
+      "title": "Main",
+      "path": "",
+      "items": [
+        { "path": "", "title": "Home", "icon": { "src": "Home" } },
+        { "path": "profile", "title": "Profile", "icon": { "src": "User" } }
+      ]
+    }
+    <span class="cm">// one entry per report — this project's own local dev seed data has a
+    // large real-shaped example. Built for a local dev emulator, though —
+    // don't reuse its values for a real tenant.</span>
+  ]
+}</pre>
+      </div>
+      <p>Full shape reference: <code>types/sidebar.d.ts</code>, <code>types/tables.d.ts</code>.</p>
+    </section>
+
+    <section class="phase" id="phase-4">
+      <div class="phase-head">
+        <span class="phase-num">04</span>
+        <h2 class="phase-title">Cosmos — the alias-config document</h2>
+      </div>
+      <p>This is the piece flagged as unfamiliar territory in the team-chat note — worth reading
+        slowly.</p>
+      <div class="callout">
+        <span class="flag">Not configurable</span>
+        <p>The document's <code>id</code> must be <strong>exactly</strong> <code>alias_config</code>
+          — a literal string in the alias resolver's Cosmos query, not
+          <code>COSMOS_DOCUMENT_ID</code> (that setting only controls the sidebar document's id).
+          It lives in the <em>same</em> database/container as Phase 03. Its array field must also
+          be named exactly <code>alias_config</code>.</p>
+      </div>
+      <div class="snippet">
+        <div class="snippet-label">cosmos · alias document</div>
+        <pre><span class="cm">// id is always this literal string, never env-configurable</span>
+{
+  "id": <span class="id">"alias_config"</span>,
+  "alias_config": [
+    {
+      <span class="cm">// SQL-backed alias</span>
+      "id": "orders-alias",
+      "sqUrl": "your-sql-server.database.windows.net",
+      "sqDatabase": "OrdersDB",
+      "sqUser": "acfreport_reader",
+      "sqPassword": "&lt;the login's password&gt;"
+      <span class="cm">// omit sqUser + sqPassword TOGETHER to use Managed Identity instead
+      // "sqPort": 1433   — optional, only for non-standard ports</span>
+    },
+    {
+      <span class="cm">// Cosmos-backed alias</span>
+      "id": "cosmos-default",
+      "databaseId": "ExampleDB"
+      <span class="cm">// omit endpoint/key to reuse this app's own Cosmos account</span>
+    }
+  ]
+}</pre>
+      </div>
+      <p>A report's <code>report.alias</code> field is just an <code>id</code> lookup into this
+        array. More real-shaped examples: <code>scripts/dev/seed-data/alias_config.json</code>
+        (again — built for the local emulator, not for reuse verbatim).</p>
+    </section>
+
+    <section class="phase" id="phase-5">
+      <div class="phase-head">
+        <span class="phase-num">05</span>
+        <h2 class="phase-title">SQL Server access</h2>
+      </div>
+      <p>Worth being deliberate here, not just "make it connect" — see the security note at the
+        end.</p>
+
+      <h3>Network</h3>
+      <p>If it's Azure SQL, the firewall needs a rule letting the App Service reach it — either
+        "Allow Azure services and resources to access this server" (broad, simplest for a pilot)
+        or the App Service's specific outbound IPs (tighter, more setup).</p>
+
+      <h3>Choose an auth model per alias</h3>
+      <p><strong>SQL login</strong> — simpler, recommended for a pilot:</p>
+      <div class="snippet">
+        <div class="snippet-label">sql · on the target server, then database</div>
+        <pre>CREATE LOGIN acfreport_reader WITH PASSWORD = '&lt;strong password&gt;';
+<span class="cm">-- then, inside the target database:</span>
+CREATE USER acfreport_reader FOR LOGIN acfreport_reader;</pre>
+      </div>
+      <p>That login/password is exactly what goes into the alias's <code>sqUser</code>/
+        <code>sqPassword</code> fields (Phase 04).</p>
+
+      <p><strong>Managed Identity</strong> — more setup, no password to manage. Requires the SQL
+        Server to have an Azure AD admin configured first:</p>
+      <div class="snippet">
+        <div class="snippet-label">sql · inside the target database</div>
+        <pre>CREATE USER [&lt;app-service-name&gt;] FROM EXTERNAL PROVIDER;
+ALTER ROLE db_datareader ADD MEMBER [&lt;app-service-name&gt;];</pre>
+      </div>
+      <p>Omit <strong>both</strong> <code>sqUser</code> and <code>sqPassword</code> on that alias
+        to select this path. Only set <code>SQL_USE_AZURE_AD=true</code> if every alias should go
+        this way — it's an all-or-nothing switch that overrides aliases which do have their own
+        SQL login set.</p>
+
+      <h3>Permission needed: SELECT, nothing more</h3>
+      <p>Confirmed directly in the report-fetching source: every SQL report type executes its
+        configured query as a read-only subquery — there is no write path anywhere in the code.
+        Grant <code>db_datareader</code> on the target database (simplest), or narrower per-table
+        <code>GRANT SELECT</code> if scoping to exactly what the pilot's reports touch.</p>
+
+      <div class="callout">
+        <span class="flag">Security note</span>
+        <div>
+          <p>A report's SQL query is author-typed in the sidebar config, not client input — but
+            the columns available for searching/filtering/sorting on top of it come from the
+            database's own metadata for that exact query, which only ever exposes columns the
+            query itself selects. Whatever tables/views the report authors write into their
+            queries are what the SQL login's grant needs to cover, and only those — don't grant
+            broader <code>db_datareader</code>-on-everything than the pilot's actual reports need,
+            especially on a server you don't yet have a feel for.</p>
+          <p>General principle-of-least-privilege practice, not specific to this app: grant a
+            reporting login only what it needs to serve the reports actually configured, and
+            revisit that grant whenever a new report is added — rather than issuing broad access
+            up front on a server you don't yet have a full picture of.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="phase" id="phase-6">
+      <div class="phase-head">
+        <span class="phase-num">06</span>
+        <h2 class="phase-title">Build and deploy the image</h2>
+      </div>
+      <p>Do <strong>not</strong> reuse the image already built for the current tenant — see the
+        opening note. Rebuild from this same source, using the new tenant's own
+        <code>.env.production.local</code> (Phase 01 + 02's values):</p>
+      <div class="snippet">
+        <div class="snippet-label">shell</div>
+        <pre>./scripts/docker-build.sh .env.production.local &lt;new-tenant-image-tag&gt;</pre>
+      </div>
+      <p>Recommend the new tenant have their <strong>own</strong> Azure Container Registry —
+        cleaner separation for a genuinely different client engagement, even if reusing the
+        existing one is technically reachable given the right permissions.</p>
+      <p>The full release script bundles build + push + rollout together, but it's written
+        specifically against the current tenant's own ACR/App Service/resource-group names. For a
+        different tenant, either edit a copy of it with their values, or do the three steps by
+        hand:</p>
+      <div class="snippet">
+        <div class="snippet-label">shell</div>
+        <pre>docker tag &lt;new-tenant-image-tag&gt; &lt;their-acr-name&gt;.azurecr.io/&lt;image-name&gt;:&lt;tag&gt;
+az acr login --name &lt;their-acr-name&gt;
+docker push &lt;their-acr-name&gt;.azurecr.io/&lt;image-name&gt;:&lt;tag&gt;
+az webapp sitecontainers update --name &lt;their-app-service-name&gt; \
+  --resource-group &lt;their-resource-group&gt; --container-name main \
+  --image &lt;their-acr-name&gt;.azurecr.io/&lt;image-name&gt;:&lt;tag&gt;</pre>
+      </div>
+    </section>
+
+    <section class="phase" id="phase-7">
+      <div class="phase-head">
+        <span class="phase-num">07</span>
+        <h2 class="phase-title">Verify, end to end</h2>
+      </div>
+      <p>Check these off as you confirm them — state is kept locally in this browser only.</p>
+      <ul class="checklist" id="verify-list">
+        <li><input type="checkbox" id="v1" /><label for="v1">Sign-in works: hits the new tenant's Microsoft login, redirects back correctly (confirms Phase 01 and the build-time values were correct in the image)</label></li>
+        <li><input type="checkbox" id="v2" /><label for="v2">Sidebar / menu renders (confirms Phase 02's Cosmos settings and Phase 03's document)</label></li>
+        <li><input type="checkbox" id="v3" /><label for="v3">A SQL report loads data (confirms Phase 04's SQL alias and Phase 05's login/permissions)</label></li>
+        <li><input type="checkbox" id="v4" /><label for="v4">A Cosmos report loads data (confirms Phase 04's Cosmos alias, or the default account)</label></li>
+        <li><input type="checkbox" id="v5" /><label for="v5">An API report loads data (confirms REPORTS_ALLOWED_HOSTS includes its endpoint's host)</label></li>
+        <li><input type="checkbox" id="v6" /><label for="v6">/profile shows the signed-in user's claims correctly (confirms the JWT audience/tenant match end to end)</label></li>
+        <li><input type="checkbox" id="v7" /><label for="v7">Devtools → Network — nothing 401/403 unexpected on /api/reports</label></li>
+      </ul>
+    </section>
+
+    <section class="phase" id="open">
+      <h2 class="phase-title" style="margin-bottom: 1rem;">Open questions before calling this final</h2>
+      <ul>
+        <li>Whether the pilot wants Managed Identity for Cosmos/SQL from day one, or plain
+          key/password auth for simplicity now with a migration later.</li>
+        <li>Whether any report needs App Roles or role-gated visibility — nothing in the app
+          currently branches on the <code>roles</code> claim, so this only matters if specifically
+          requested.</li>
+        <li>Confirm with whoever owns the new tenant's SQL Server what else already lives on it
+          before granting <code>db_datareader</code> broadly.</li>
+      </ul>
+    </section>
+
+    <footer class="doc-foot">
+      Verified against source, not memory — every claim above traces to a specific file in the
+      repo. Not shipped documentation; promote relevant parts into the docs tree or an ADR if this
+      needs to become permanent guidance.
+    </footer>
+  </main>
+</div>
+
+<script>
+  (function () {
+    try {
+      var boxes = document.querySelectorAll('#verify-list input[type="checkbox"]');
+      var KEY = "tenant-field-guide-verify-v1";
+      var saved = {};
+      try { saved = JSON.parse(localStorage.getItem(KEY) || "{}"); } catch (e) {}
+      boxes.forEach(function (box) {
+        if (saved[box.id]) box.checked = true;
+        box.addEventListener("change", function () {
+          try {
+            var state = JSON.parse(localStorage.getItem(KEY) || "{}");
+            state[box.id] = box.checked;
+            localStorage.setItem(KEY, JSON.stringify(state));
+          } catch (e) {}
+        });
+      });
+    } catch (e) {}
+  })();
+
+  (function () {
+    try {
+      var sections = Array.prototype.slice.call(document.querySelectorAll("main .phase, .doc-head"));
+      var links = document.querySelectorAll("#railnav a");
+      if (!("IntersectionObserver" in window) || sections.length === 0) return;
+
+      var map = {};
+      links.forEach(function (a) { map[a.getAttribute("href").slice(1)] = a; });
+
+      var observer = new IntersectionObserver(
+        function (entries) {
+          entries.forEach(function (entry) {
+            if (entry.isIntersecting) {
+              links.forEach(function (a) { a.classList.remove("active"); });
+              var link = map[entry.target.id];
+              if (link) link.classList.add("active");
+            }
+          });
+        },
+        { rootMargin: "-10% 0px -70% 0px" }
+      );
+
+      sections.forEach(function (s) { if (s.id) observer.observe(s); });
+    } catch (e) {}
+  })();
+</script>
