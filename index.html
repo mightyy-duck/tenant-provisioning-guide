@@ -18,6 +18,9 @@
     --caution: #a3661f;
     --caution-ink: #7a4c17;
     --caution-tint: #f6ecdc;
+    --danger: #b8402f;
+    --danger-ink: #8a2f21;
+    --danger-tint: #f8e6e1;
     --code-bg: #1c2226;
     --code-ink: #e8e7df;
     --code-accent: #7fd9b9;
@@ -41,6 +44,9 @@
       --caution: #d89a4a;
       --caution-ink: #e8b579;
       --caution-tint: #2a2117;
+      --danger: #e0705c;
+      --danger-ink: #f0a294;
+      --danger-tint: #2a1815;
       --code-bg: #0e1112;
       --code-ink: #e8e7df;
       --code-accent: #7fd9b9;
@@ -64,6 +70,9 @@
     --caution: #d89a4a;
     --caution-ink: #e8b579;
     --caution-tint: #2a2117;
+    --danger: #e0705c;
+    --danger-ink: #f0a294;
+    --danger-tint: #2a1815;
     --code-bg: #0e1112;
     --code-ink: #e8e7df;
     --code-accent: #7fd9b9;
@@ -259,6 +268,17 @@
 
   .not-shipped::before { content: "●"; color: var(--steel-dim); font-size: 0.6rem; }
 
+  .revision-note {
+    margin-top: 0.9rem;
+    padding: 0.55rem 0.8rem;
+    border: 1px dashed var(--line-strong);
+    border-radius: 4px;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.74rem;
+    color: var(--steel);
+    max-width: 40rem;
+  }
+
   /* ---------- Prose ---------- */
   section.phase {
     max-width: 44rem;
@@ -336,6 +356,13 @@
     border-radius: 0 4px 4px 0;
   }
 
+  .callout.danger {
+    background: var(--danger-tint);
+    border-left-color: var(--danger);
+  }
+
+  .callout.danger .flag { color: var(--danger-ink); }
+
   .callout .flag {
     font-family: "IBM Plex Mono", monospace;
     font-size: 0.7rem;
@@ -348,7 +375,7 @@
   }
 
   .callout p, .callout ul { margin: 0; max-width: none; }
-  .callout p + p { margin-top: 0.6rem; }
+  .callout p + p, .callout ul + p, .callout p + ul { margin-top: 0.6rem; }
   .callout code {
     background: var(--paper-raised);
     border-color: var(--line-strong);
@@ -527,10 +554,11 @@
       <a href="#phase-1"><span class="num">01</span> App registrations</a>
       <a href="#phase-2"><span class="num">02</span> App Service env</a>
       <a href="#phase-3"><span class="num">03</span> Web-config doc</a>
-      <a href="#phase-4"><span class="num">04</span> Alias-config doc</a>
-      <a href="#phase-5"><span class="num">05</span> SQL access</a>
-      <a href="#phase-6"><span class="num">06</span> Build &amp; deploy</a>
-      <a href="#phase-7"><span class="num">07</span> Verify</a>
+      <a href="#phase-4"><span class="num">04</span> Access-control doc</a>
+      <a href="#phase-5"><span class="num">05</span> Alias-config docs</a>
+      <a href="#phase-6"><span class="num">06</span> SQL access</a>
+      <a href="#phase-7"><span class="num">07</span> Build &amp; deploy</a>
+      <a href="#phase-8"><span class="num">08</span> Verify</a>
       <a href="#open"><span class="num">·</span> Open questions</a>
     </nav>
   </aside>
@@ -543,36 +571,72 @@
         different Azure tenant — verified directly against source, not memory. Written for the
         person doing the Azure Portal work and the person doing the build.</p>
       <div class="meta-row">
-        <span><strong>Investigated</strong> 2026-08-27</span>
+        <span><strong>Investigated</strong> 2026-09-16</span>
         <span><strong>Scope</strong> pilot / new client tenant</span>
         <span><strong>Applies to</strong> this repo's Dockerfile + scripts/</span>
       </div>
       <div class="not-shipped">Working checklist — not shipped documentation</div>
+      <div class="revision-note">Revision note: the app's config architecture changed
+        fundamentally between the 2026-08-27 version of this guide and today. Everything below is
+        re-verified against current source — treat the earlier revision as obsolete, not just
+        outdated.</div>
     </div>
 
     <section class="phase" id="thesis" style="scroll-margin-top: 2rem;">
-      <h2 class="phase-title" style="margin-bottom: 1rem;">The one fact that changes everything else</h2>
+      <h2 class="phase-title" style="margin-bottom: 1rem;">The one fact that changes everything else — and it flipped</h2>
       <div class="callout">
         <span class="flag">Read first</span>
         <div>
-          <p><strong><code>NEXT_PUBLIC_*</code> values are baked into the Docker image at build
-            time, not read at runtime.</strong> This is a hard Next.js constraint. Concretely:
-            <code>NEXT_PUBLIC_TENANT_ID</code>, <code>NEXT_PUBLIC_CLIENTAPP_CLIENT_ID</code>,
-            <code>NEXT_PUBLIC_API_SCOPE</code>, and <code>NEXT_PUBLIC_CLIENT_LOOPBACK_URL</code>
-            all get compiled directly into the client-side JS bundle.</p>
-          <p>You cannot take the image already built for the current tenant and point it at a
-            different tenant's App Service by changing Application Settings — the client bundle
-            would still try to sign in against the original tenant/app registration. A new tenant
-            needs a <strong>freshly built image</strong>, from this same source, using
-            <em>their own</em> <code>.env.production.local</code>.</p>
+          <p><strong>The build-time constraint this guide used to open with is gone.</strong>
+            <code>NEXT_PUBLIC_*</code> values are no longer compiled into the Docker image.
+            The <code>NEXT_PUBLIC_</code> prefix is now a misnomer kept only for continuity: the
+            browser fetches those values from <strong><code>GET /api/config</code></strong>
+            (<code>app/api/config/route.ts</code>), a JSON endpoint that whitelists every
+            <code>process.env</code> key starting with <code>NEXT_PUBLIC_</code> (prefix match,
+            not a hand-maintained list). <code>configs/runtime-env.ts</code> /
+            <code>providers/runtime-config.tsx</code> read it client-side; server code still reads
+            <code>process.env</code> directly. Confirmed in the Dockerfile itself: the
+            <code>builder</code> stage runs <code>pnpm run build</code> with no
+            <code>NEXT_PUBLIC_*</code> set at all.</p>
+          <p><strong>Consequence: one Docker image now runs on any tenant, any App Service host,
+            with no rebuild.</strong> Provisioning a new tenant is (almost always) a matter of new
+            Azure resources and new <em>Application Settings</em> on a fresh App Service — not a
+            new image build. This inverts the old guide's central recommendation to always rebuild
+            per tenant.</p>
         </div>
       </div>
-      <p>Everything else — <code>AZURE_TENANT_ID</code>, <code>AZURE_CLIENT_ID</code>,
-        <code>AZURE_CLIENT_SECRET</code>, every <code>COSMOS_*</code>, every
+      <p><strong>Two narrow exceptions remain build-time</strong> — both are
+        <code>next.config.js</code> concerns, not <code>NEXT_PUBLIC_*</code> config-endpoint
+        concerns:</p>
+      <ul>
+        <li><code>ALLOWED_IMAGE_DOMAINS</code> — feeds <code>images.remotePatterns</code> in
+          <code>next.config.js</code>, evaluated when the Next server process starts up from the
+          standalone build. The Dockerfile's own header note says this is effectively frozen at
+          <code>pnpm run build</code> and offers a documented escape hatch (add a Docker
+          <code>ARG</code>) if it ever needs to vary per tenant — not implemented today.</li>
+        <li><code>NEXT_PUBLIC_FAVICON_URL</code> — despite the prefix, <code>app/layout.tsx</code>
+          reads it as a plain <code>process.env.NEXT_PUBLIC_FAVICON_URL</code> inside a static
+          metadata object, which Next.js compiles in by default; it does <strong>not</strong> go
+          through the runtime <code>/api/config</code> path. Confirmed by testing (per
+          <code>.env.example</code>'s own note, added 2026-09-16): setting this as an App Service
+          Application Setting on an already-built image has <strong>no effect</strong>.</li>
+      </ul>
+      <div class="callout danger">
+        <span class="flag">Current gap</span>
+        <p>There is currently <strong>no working mechanism</strong> to set a per-tenant favicon
+          without a code change. <code>.dockerignore</code> excludes every <code>.env*</code> file
+          from the build context, so a per-tenant <code>.env.production.local</code> can't reach
+          <code>NEXT_PUBLIC_FAVICON_URL</code> into the build either — the Dockerfile has no
+          <code>ARG</code> for it (unlike the documented, still-unimplemented escape hatch for
+          <code>ALLOWED_IMAGE_DOMAINS</code>). If a pilot needs custom branding here, that's new
+          code, not new config. Default: <code>/favicon.ico</code> from <code>public/</code>.</p>
+      </div>
+      <p>Everything else — the Entra values, every <code>COSMOS_*</code>, every
         <code>DB_*</code>/<code>AZURE_SQL_*</code>, <code>SQL_USE_AZURE_AD</code>,
-        <code>COSMOS_USE_MANAGED_IDENTITY</code>, <code>REPORTS_ALLOWED_HOSTS</code> — is read from
-        <code>process.env</code> at <strong>runtime</strong>. Those genuinely can live purely as
-        Azure App Service Application Settings, no rebuild needed.</p>
+        <code>COSMOS_USE_MANAGED_IDENTITY</code>, <code>REPORTS_ALLOWED_HOSTS</code>,
+        <code>NEXT_PUBLIC_PRIVILEGED_ROLES</code> — is read from <code>process.env</code> at
+        runtime and lives purely as an Azure App Service Application Setting, changeable in
+        seconds with no rebuild.</p>
     </section>
 
     <section class="phase" id="phase-1">
@@ -580,16 +644,18 @@
         <span class="phase-num">01</span>
         <h2 class="phase-title">Azure AD app registrations</h2>
       </div>
-      <p>Two registrations, in the <strong>new tenant</strong>, mirroring the split this project
-        already went through once — get it right from day one instead of repeating the old
-        single-registration mistake.</p>
+      <p>Two registrations, in the <strong>new tenant</strong>, per <a class="inline-link"
+        href="#" onclick="return false;">ADR-001</a> (App Registration Split) — unchanged in
+        substance since the last revision of this guide.</p>
 
       <h3>1a · SPA registration — public client, sign-in only, no secret</h3>
       <ul>
-        <li>Redirect URI (SPA platform): the new tenant's real App Service URL once known, e.g.
+        <li>Redirect URI (SPA platform): the new tenant's real App Service URL, e.g.
           <code>https://&lt;their-app-name&gt;.azurewebsites.net</code> — and
           <code>http://localhost:3000</code> if anyone will run this checkout locally against
-          their tenant.</li>
+          their tenant. This is a portal setting now, not a build input — changing it later needs
+          no rebuild (the 2026-08-24 "stale baked redirect URI" incident this app once hit is
+          structurally impossible today).</li>
         <li>No client secret. Nothing else non-default needed.</li>
       </ul>
       <p><strong>Record:</strong> Tenant ID and Application (client) ID.</p>
@@ -600,28 +666,44 @@
           <code>api://&lt;api-client-id&gt;</code> is fine) → add a scope named exactly
           <code>access_as_user</code>.</li>
         <li><strong>Certificates &amp; secrets</strong> → a client secret only if local dev needs
-          the <code>DefaultAzureCredential</code> fallback path — production should use Managed
-          Identity instead and can leave this unset.</li>
+          the <code>DefaultAzureCredential</code>/<code>EnvironmentCredential</code> fallback path
+          — production should use Managed Identity instead and can leave this unset.</li>
         <li>Back on the SPA registration → <strong>API permissions</strong> → add this
           registration's <code>access_as_user</code> delegated permission → grant admin consent.</li>
       </ul>
+
+      <h3>1c · App Roles — now conditionally required, not always skippable</h3>
       <div class="callout">
-        <span class="flag">Scope check</span>
-        <p>App Roles are <strong>not required</strong> for this app to function — the access
-          token's <code>roles</code> claim is read and displayed on <code>/profile</code>, but
-          nothing currently branches on it. Skip App Roles unless the new tenant specifically asks
-          for role display.</p>
+        <span class="flag">Changed since last revision</span>
+        <div>
+          <p>The old guide said skip App Roles outright — that's no longer safe advice. A
+            role-gated area now exists in the app: <code>/tools/config</code> (a visual config
+            builder), the whole <code>/docs/**</code> tree, <code>/development/**</code>, and the
+            <code>/api/admin/*</code> routes are all behind <code>RoleGuard</code>
+            (<code>components/auth/role-guard.tsx</code>), controlled by
+            <code>NEXT_PUBLIC_PRIVILEGED_ROLES</code> (<code>configs/rbac.ts</code>) — a
+            comma-separated, case-sensitive list matched against the access token's
+            <code>roles</code> claim. <strong>Unset or empty ⇒ no one gets past it</strong>, which
+            is a perfectly fine default for a pilot that doesn't need the config-builder UI.</p>
+          <p>If the pilot <em>does</em> want someone using <code>/tools/config</code> to build the
+            sidebar/alias Cosmos documents visually instead of hand-writing JSON (see Phases 03–05),
+            add matching App Roles on this registration, assign them to the right users/groups, and
+            set <code>NEXT_PUBLIC_PRIVILEGED_ROLES</code> to the same role names.</p>
+        </div>
       </div>
 
       <h3>What comes out of this phase</h3>
+      <p>Every value below is now a plain Application Setting — the old build-time/runtime split
+        for the four MSAL keys no longer applies.</p>
       <div class="value-grid">
-        <div class="value-card"><span class="k">NEXT_PUBLIC_TENANT_ID</span><p class="v">New tenant's Tenant ID <em>(build-time)</em></p></div>
-        <div class="value-card"><span class="k">AZURE_TENANT_ID</span><p class="v">Same Tenant ID <em>(runtime)</em></p></div>
-        <div class="value-card"><span class="k">NEXT_PUBLIC_CLIENTAPP_CLIENT_ID</span><p class="v">SPA registration's Client ID <em>(build-time)</em></p></div>
-        <div class="value-card"><span class="k">AZURE_CLIENT_ID</span><p class="v">API registration's Client ID <em>(runtime — the JWT audience)</em></p></div>
-        <div class="value-card"><span class="k">NEXT_PUBLIC_API_SCOPE</span><p class="v"><code>api://&lt;api-client-id&gt;/access_as_user</code> <em>(build-time)</em></p></div>
-        <div class="value-card"><span class="k">AZURE_CLIENT_SECRET</span><p class="v">API registration's secret — dev-only <em>(runtime)</em></p></div>
-        <div class="value-card"><span class="k">NEXT_PUBLIC_CLIENT_LOOPBACK_URL</span><p class="v">The App Service's real URL, once known <em>(build-time)</em></p></div>
+        <div class="value-card"><span class="k">NEXT_PUBLIC_TENANT_ID</span><p class="v">New tenant's Tenant ID</p></div>
+        <div class="value-card"><span class="k">AZURE_TENANT_ID</span><p class="v">Same Tenant ID</p></div>
+        <div class="value-card"><span class="k">NEXT_PUBLIC_CLIENTAPP_CLIENT_ID</span><p class="v">SPA registration's Client ID</p></div>
+        <div class="value-card"><span class="k">AZURE_CLIENT_ID</span><p class="v">API registration's Client ID — the JWT audience</p></div>
+        <div class="value-card"><span class="k">NEXT_PUBLIC_API_SCOPE</span><p class="v"><code>api://&lt;api-client-id&gt;/access_as_user</code></p></div>
+        <div class="value-card"><span class="k">AZURE_CLIENT_SECRET</span><p class="v">API registration's secret — dev-only, resolved from Key Vault in real production</p></div>
+        <div class="value-card"><span class="k">NEXT_PUBLIC_CLIENT_LOOPBACK_URL</span><p class="v">The App Service's real URL — a Portal setting, changeable without a rebuild</p></div>
+        <div class="value-card"><span class="k">NEXT_PUBLIC_PRIVILEGED_ROLES</span><p class="v">Comma-separated App Role names — only if 1c applies; blank is safe otherwise</p></div>
       </div>
     </section>
 
@@ -631,21 +713,20 @@
         <h2 class="phase-title">App Service environment</h2>
       </div>
       <p>Source of truth for the full variable list is <code>.env.example</code> in the repo root
-        — if this table and that file ever disagree, the file wins.</p>
+        — if this table and that file ever disagree, the file wins. Every row below is a Portal
+        Application Setting unless flagged otherwise.</p>
 
-      <h3>Build-time only</h3>
-      <p>Baked into the image when it's built. Cannot be changed by Application Settings
-        afterward — must be correct in the <em>new tenant's own</em>
-        <code>.env.production.local</code> before building.</p>
+      <h3>Build-time exceptions only</h3>
+      <p>These two must be correct <em>before</em> the image is built (see the thesis section
+        above) — they cannot be fixed later with an Application Setting:</p>
       <ul>
-        <li><code>NEXT_PUBLIC_TENANT_ID</code>, <code>NEXT_PUBLIC_CLIENTAPP_CLIENT_ID</code>,
-          <code>NEXT_PUBLIC_API_SCOPE</code>, <code>NEXT_PUBLIC_CLIENT_LOOPBACK_URL</code> — from
-          Phase 01.</li>
-        <li><code>NEXT_PUBLIC_APP_NAME</code> / <code>_VERSION</code> / <code>_BUILD</code> /
-          <code>_BUILD_VERSION</code> / <code>_DESCRIPTION</code>,
-          <code>NEXT_PUBLIC_BG_IMAGE_DARK</code> / <code>_LIGHT</code>,
-          <code>NEXT_PUBLIC_DARK_PROFILE_BG</code> / <code>_LIGHT_PROFILE_BG</code> — cosmetic;
-          the profile-background pair is optional and falls back to a default image if blank.</li>
+        <li><code>ALLOWED_IMAGE_DOMAINS</code> — comma-separated bare hostnames for
+          <code>next/image</code> remote sources. Only matters if a report or branding image
+          points at a non-default host; the shipped defaults
+          (<code>images.unsplash.com,dummyjson.com</code>) already cover the sample branding
+          images in <code>.env.example</code>.</li>
+        <li><code>NEXT_PUBLIC_FAVICON_URL</code> — see the current-gap callout above. Leave unset
+          for a pilot unless someone is prepared to touch code.</li>
       </ul>
 
       <h3>Runtime — App Service → Configuration → Application Settings</h3>
@@ -657,15 +738,17 @@
           <tbody>
             <tr><td><code>AZURE_TENANT_ID</code></td><td>Yes</td><td>Same as <code>NEXT_PUBLIC_TENANT_ID</code></td></tr>
             <tr><td><code>AZURE_CLIENT_ID</code></td><td>Yes</td><td>The API registration's client ID — middleware throws at startup if this or the tenant ID is missing</td></tr>
-            <tr><td><code>AZURE_CLIENT_SECRET</code></td><td>No (prod)</td><td>Only used by the dev-mode credential fallback. Production should use Managed Identity and a Key Vault reference instead</td></tr>
+            <tr><td><code>AZURE_CLIENT_SECRET</code></td><td>No (prod)</td><td>Only used by the dev-mode <code>EnvironmentCredential</code> fallback. Production should use Managed Identity + a Key Vault reference instead</td></tr>
+            <tr><td><code>NEXT_PUBLIC_PRIVILEGED_ROLES</code></td><td>No</td><td>Comma-separated App Role names for the config-builder / docs / dev-lab role gate. Blank ⇒ nobody gets in (safe default) — see Phase 01c</td></tr>
             <tr><td><code>COSMOS_ENDPOINT</code> / <code>COSMOS_KEY</code></td><td>Yes, unless Managed Identity</td><td>New tenant's own Cosmos account</td></tr>
             <tr><td><code>COSMOS_USE_MANAGED_IDENTITY</code></td><td>No</td><td>Requires enabling a Managed Identity on the App Service + granting it a Cosmos data-plane role. Simpler for a pilot: skip, use the key</td></tr>
-            <tr><td><code>COSMOS_DATABASE_ID</code></td><td>Yes</td><td>Your choice of name — see Phase 03</td></tr>
-            <tr><td><code>COSMOS_CONTAINER</code></td><td>Yes</td><td>Your choice of name — holds both config documents (Phase 03 + 04)</td></tr>
-            <tr><td><code>COSMOS_DOCUMENT_ID</code></td><td>No</td><td>Defaults to <code>sidebar-config</code> if unset</td></tr>
-            <tr><td><code>DB_USER</code> / <code>_PASSWORD</code> / <code>_SERVER</code> / <code>_NAME</code></td><td>No</td><td>A no-alias fallback only — most SQL connections resolve per-report from the alias document instead (Phase 04/05). Safe to leave unset for a pilot</td></tr>
-            <tr><td><code>SQL_USE_AZURE_AD</code></td><td>No</td><td>"true" switches <em>all</em> SQL connections to Managed Identity, overriding any alias's own sqUser/sqPassword — read Phase 05 before enabling</td></tr>
-            <tr><td><code>COSMOS_LAB_DATABASE</code> / <code>_CONTAINER</code></td><td>No</td><td>Dev-only benchmark lab — skip for a pilot</td></tr>
+            <tr><td><code>COSMOS_DATABASE_ID</code></td><td>No</td><td>Your choice of name — see Phase 03. Defaults to <code>"config"</code> if unset</td></tr>
+            <tr><td><code>COSMOS_CONTAINER</code></td><td>No</td><td>Your choice of name — holds every config document (Phases 03–05). Defaults to <code>"sidebar"</code> if unset</td></tr>
+            <tr><td><code>COSMOS_DOCUMENT_ID</code></td><td>No</td><td>Sidebar/menu document id. Defaults to <code>sidebar-config</code> if unset</td></tr>
+            <tr><td><code>DB_USER</code> / <code>_PASSWORD</code> / <code>_SERVER</code> / <code>_NAME</code></td><td>No</td><td>A no-alias fallback only — most SQL connections resolve per-report from the <code>sql_alias_config</code> document instead (Phase 05/06). Safe to leave unset for a pilot</td></tr>
+            <tr><td><code>SQL_USE_AZURE_AD</code></td><td>No</td><td>"true" switches <em>all</em> SQL connections to Managed Identity, overriding any alias's own sqlUser/sqlPassword — read Phase 06 before enabling</td></tr>
+            <tr><td><code>COSMOS_LAB_DATABASE</code> / <code>_CONTAINER</code>, <code>SQL_LAB_ROLE</code></td><td>No</td><td>Dev-only benchmark/playground labs, 404 outside <code>NODE_ENV=development</code> — skip for a pilot</td></tr>
+            <tr><td><code>TEST_TOKEN_SECRET</code> / <code>TEST_TOKEN_API_SCOPE</code></td><td>No</td><td>Dev-only token-minting helper route, hard-404s outside development — leave blank in any deployed environment</td></tr>
             <tr><td><code>REPORTS_ALLOWED_HOSTS</code></td><td>Only if any report is API-type</td><td>Comma-separated hostname allowlist — an API report whose endpoint host isn't listed is rejected</td></tr>
           </tbody>
         </table>
@@ -675,17 +758,19 @@
     <section class="phase" id="phase-3">
       <div class="phase-head">
         <span class="phase-num">03</span>
-        <h2 class="phase-title">Cosmos — the web-config document</h2>
+        <h2 class="phase-title">Cosmos — the web-config (sidebar/menu) document</h2>
       </div>
-      <p><strong>Container, once:</strong> database — any name (→ <code>COSMOS_DATABASE_ID</code>).
-        Container — any name (→ <code>COSMOS_CONTAINER</code>).</p>
+      <p><strong>Container, once:</strong> database — any name (→ <code>COSMOS_DATABASE_ID</code>,
+        default <code>config</code>). Container — any name (→ <code>COSMOS_CONTAINER</code>,
+        default <code>sidebar</code>). This same container also holds the access-control document
+        (Phase 04) and the alias-config documents (Phase 05) — one container for all of it.</p>
       <div class="callout">
         <span class="flag">Simplify</span>
         <p><strong>Partition key path: use <code>/id</code>.</strong> The existing production
           container uses a redundant same-named field as its partition key — purely a historical
-          choice, not a code requirement. The point-read only ever needs the partition key
-          <em>value</em> to equal the document's own <code>id</code>; <code>/id</code> gets the
-          same behavior with one less field to maintain.</p>
+          choice, not a code requirement. Every document in this container (sidebar, access
+          control, both alias docs) self-partitions on its own <code>id</code>; <code>/id</code>
+          gets the same behavior with one less field to maintain.</p>
       </div>
       <p>Document, once — <code>id</code> must match <code>COSMOS_DOCUMENT_ID</code> (or literally
         <code>sidebar-config</code> if that's left unset):</p>
@@ -710,61 +795,117 @@
   ]
 }</pre>
       </div>
-      <p>Full shape reference: <code>types/sidebar.d.ts</code>, <code>types/tables.d.ts</code>.</p>
+      <p>Full shape reference: <code>types/sidebar.d.ts</code>, <code>types/tables.d.ts</code>.
+        Prefer building this visually via <code>/tools/config</code> if Phase 01c's App Roles are
+        set up for whoever is doing this work.</p>
     </section>
 
     <section class="phase" id="phase-4">
       <div class="phase-head">
         <span class="phase-num">04</span>
-        <h2 class="phase-title">Cosmos — the alias-config document</h2>
+        <h2 class="phase-title">Cosmos — the access-control document (new since last revision)</h2>
       </div>
-      <p>This is the piece flagged as unfamiliar territory in the team-chat note — worth reading
-        slowly.</p>
-      <div class="callout">
-        <span class="flag">Not configurable</span>
-        <p>The document's <code>id</code> must be <strong>exactly</strong> <code>alias_config</code>
-          — a literal string in the alias resolver's Cosmos query, not
-          <code>COSMOS_DOCUMENT_ID</code> (that setting only controls the sidebar document's id).
-          It lives in the <em>same</em> database/container as Phase 03. Its array field must also
-          be named exactly <code>alias_config</code>.</p>
+      <p>This document did not exist in the previous version of this guide. It is now
+        <strong>mandatory</strong> — skip it and the app fails closed on every authenticated API
+        request.</p>
+      <div class="callout danger">
+        <span class="flag">Fail-closed</span>
+        <p><code>middleware.ts</code> evaluates a per-role allow/deny policy on <strong>every</strong>
+          <code>/api/*</code> request before anything else runs (<code>lib/access-control/policy.ts</code>
+          + <code>evaluate.ts</code>). If the document is missing <em>and</em> nothing is cached
+          yet (a fresh deployment always starts uncached), the policy load throws
+          <code>AccessPolicyUnavailableError</code> and middleware turns that into an
+          <strong>HTTP 503 on every <code>/api/*</code> call</strong> — sign-in itself can still
+          succeed, but the app will look completely broken.</p>
       </div>
+      <p>The document's <code>id</code> is <strong>always</strong> the literal string
+        <code>access_config</code> — not env-configurable — living in the <em>same</em>
+        database/container as Phase 03, self-partitioned on its own id.</p>
       <div class="snippet">
-        <div class="snippet-label">cosmos · alias document</div>
-        <pre><span class="cm">// id is always this literal string, never env-configurable</span>
+        <div class="snippet-label">cosmos · access-control document — minimal safe default</div>
+        <pre><span class="cm">// id is always this literal string, never env-configurable.
+// An empty rules array is a valid, safe default: nothing is</span>
+<span class="cm">// restricted beyond what auth already requires.</span>
 {
-  "id": <span class="id">"alias_config"</span>,
-  "alias_config": [
-    {
-      <span class="cm">// SQL-backed alias</span>
-      "id": "orders-alias",
-      "sqUrl": "your-sql-server.database.windows.net",
-      "sqDatabase": "OrdersDB",
-      "sqUser": "acfreport_reader",
-      "sqPassword": "&lt;the login's password&gt;"
-      <span class="cm">// omit sqUser + sqPassword TOGETHER to use Managed Identity instead
-      // "sqPort": 1433   — optional, only for non-standard ports</span>
-    },
-    {
-      <span class="cm">// Cosmos-backed alias</span>
-      "id": "cosmos-default",
-      "databaseId": "ExampleDB"
-      <span class="cm">// omit endpoint/key to reuse this app's own Cosmos account</span>
-    }
-  ]
+  "id": <span class="id">"access_config"</span>,
+  "ACFExtensionConfig": "access_config",
+  "rules": []
 }</pre>
       </div>
-      <p>A report's <code>report.alias</code> field is just an <code>id</code> lookup into this
-        array. More real-shaped examples: <code>scripts/dev/seed-data/alias_config.json</code>
-        (again — built for the local emulator, not for reuse verbatim).</p>
+      <p>The real production container also carries a rule denying the <code>guest</code> role
+        from <code>/api/lab/*</code> — irrelevant for a pilot since the dev-lab routes don't even
+        exist in a production build. Rule shape, if the pilot needs one later:
+        <code>{ "allowed": false | true, "role": "&lt;name&gt;" | ["&lt;name&gt;", …] | "*", "target": "/api/…" | ["…"] }</code>.
+        An explicit <code>allowed: false</code> always wins; adding any <code>allowed: true</code>
+        rule for a target turns it into a whitelist for that target. Full semantics:
+        <code>lib/access-control/evaluate.ts</code>'s header comment.</p>
     </section>
 
     <section class="phase" id="phase-5">
       <div class="phase-head">
         <span class="phase-num">05</span>
+        <h2 class="phase-title">Cosmos — the alias-config documents (contract changed since last revision)</h2>
+      </div>
+      <div class="callout">
+        <span class="flag">Changed since last revision</span>
+        <p>The single <code>alias_config</code> document this guide previously described was
+          replaced by a report-type-scoped split: <strong>two separate documents</strong>,
+          <code>cosmos_alias_config</code> and <code>sql_alias_config</code>, each self-partitioned
+          on its own id, each holding an array field also named <code>alias_config</code>. Field
+          names inside each entry changed too. Only create the document(s) for report types the
+          pilot actually uses — <code>resolveAlias()</code> only queries
+          <code>&lt;report_type&gt;_alias_config</code> when a report of that type references an
+          alias.</p>
+      </div>
+      <div class="snippet">
+        <div class="snippet-label">cosmos · sql_alias_config document</div>
+        <pre>{
+  "id": <span class="id">"sql_alias_config"</span>,
+  "ACFExtensionConfig": "sql_alias_config",
+  "alias_config": [
+    {
+      "id": "orders-alias",
+      "sqlUrl": "your-sql-server.database.windows.net",
+      "sqlDatabase": "OrdersDB",
+      "sqlUser": "acfreport_reader",
+      "sqlPassword": "&lt;the login's password&gt;"
+      <span class="cm">// sqlUser + sqlPassword: both-or-neither. Omit both to use Managed
+      // Identity instead (Phase 06). "sqlPort" is optional, non-standard
+      // ports only.</span>
+    }
+  ]
+}</pre>
+      </div>
+      <div class="snippet">
+        <div class="snippet-label">cosmos · cosmos_alias_config document</div>
+        <pre>{
+  "id": <span class="id">"cosmos_alias_config"</span>,
+  "ACFExtensionConfig": "cosmos_alias_config",
+  "alias_config": [
+    {
+      "id": "cosmos-default",
+      "cosmosDatabase": "ExampleDB"
+      <span class="cm">// cosmosUrl / cosmosPrimaryKey: omit both to reuse this app's own
+      // Cosmos account (COSMOS_ENDPOINT/COSMOS_KEY). cosmosPartitionKey
+      // optional, per-container specific.</span>
+    }
+  ]
+}</pre>
+      </div>
+      <p>A report's <code>report.alias</code> field is an <code>id</code> lookup into the matching
+        array by report type. More real-shaped examples:
+        <code>scripts/dev/seed-data/sql_alias_config.json</code> and
+        <code>cosmos_alias_config.json</code> (again — built for the local emulator, not for reuse
+        verbatim).</p>
+    </section>
+
+    <section class="phase" id="phase-6">
+      <div class="phase-head">
+        <span class="phase-num">06</span>
         <h2 class="phase-title">SQL Server access</h2>
       </div>
       <p>Worth being deliberate here, not just "make it connect" — see the security note at the
-        end.</p>
+        end. Unchanged in substance from the last revision.</p>
 
       <h3>Network</h3>
       <p>If it's Azure SQL, the firewall needs a rule letting the App Service reach it — either
@@ -779,8 +920,8 @@
 <span class="cm">-- then, inside the target database:</span>
 CREATE USER acfreport_reader FOR LOGIN acfreport_reader;</pre>
       </div>
-      <p>That login/password is exactly what goes into the alias's <code>sqUser</code>/
-        <code>sqPassword</code> fields (Phase 04).</p>
+      <p>That login/password is exactly what goes into the alias's <code>sqlUser</code>/
+        <code>sqlPassword</code> fields (Phase 05).</p>
 
       <p><strong>Managed Identity</strong> — more setup, no password to manage. Requires the SQL
         Server to have an Azure AD admin configured first:</p>
@@ -789,16 +930,23 @@ CREATE USER acfreport_reader FOR LOGIN acfreport_reader;</pre>
         <pre>CREATE USER [&lt;app-service-name&gt;] FROM EXTERNAL PROVIDER;
 ALTER ROLE db_datareader ADD MEMBER [&lt;app-service-name&gt;];</pre>
       </div>
-      <p>Omit <strong>both</strong> <code>sqUser</code> and <code>sqPassword</code> on that alias
+      <p>Omit <strong>both</strong> <code>sqlUser</code> and <code>sqlPassword</code> on that alias
         to select this path. Only set <code>SQL_USE_AZURE_AD=true</code> if every alias should go
         this way — it's an all-or-nothing switch that overrides aliases which do have their own
         SQL login set.</p>
 
       <h3>Permission needed: SELECT, nothing more</h3>
       <p>Confirmed directly in the report-fetching source: every SQL report type executes its
-        configured query as a read-only subquery — there is no write path anywhere in the code.
-        Grant <code>db_datareader</code> on the target database (simplest), or narrower per-table
+        configured query as a read-only subquery (<code>SELECT * FROM (&lt;query&gt;) AS … WHERE 1=0</code>
+        for schema introspection, similarly wrapped for real fetches), and a keyword blocklist now
+        additionally rejects <code>DROP</code>/<code>DELETE</code>/<code>TRUNCATE</code>/<code>ALTER</code>/
+        <code>EXEC</code>/<code>EXECUTE</code> in a configured query as defense in depth. Grant
+        <code>db_datareader</code> on the target database (simplest), or narrower per-table
         <code>GRANT SELECT</code> if scoping to exactly what the pilot's reports touch.</p>
+      <p>TLS is validated properly against a real server: <code>trustServerCertificate</code> is
+        only <code>true</code> when the target host is literally <code>localhost</code> or
+        <code>127.0.0.1</code> (<code>lib/connection/db.ts</code>'s <code>isLocalSqlTarget()</code>)
+        — a real Azure SQL alias always gets certificate validation.</p>
 
       <div class="callout">
         <span class="flag">Security note</span>
@@ -818,61 +966,110 @@ ALTER ROLE db_datareader ADD MEMBER [&lt;app-service-name&gt;];</pre>
       </div>
     </section>
 
-    <section class="phase" id="phase-6">
+    <section class="phase" id="phase-7">
       <div class="phase-head">
-        <span class="phase-num">06</span>
-        <h2 class="phase-title">Build and deploy the image</h2>
+        <span class="phase-num">07</span>
+        <h2 class="phase-title">Build and deploy</h2>
       </div>
-      <p>Do <strong>not</strong> reuse the image already built for the current tenant — see the
-        opening note. Rebuild from this same source, using the new tenant's own
-        <code>.env.production.local</code> (Phase 01 + 02's values):</p>
+      <p><strong>Default assumption is now the opposite of the last revision:</strong> you
+        probably do <em>not</em> need a new image build for a new tenant. Since the image bakes in
+        no per-deployment config, the exact image already in this project's Azure Container
+        Registry can be pushed to (or pulled from) a new tenant's own ACR and pointed at their App
+        Service — provisioning becomes an Azure-resources-and-Application-Settings exercise, not a
+        rebuild-and-redeploy one.</p>
+      <p><strong>Rebuild from source only if:</strong> the pilot needs a non-default
+        <code>ALLOWED_IMAGE_DOMAINS</code> or a custom favicon (both build-time exceptions, see the
+        thesis section — the favicon case currently has no supported override at all), or the
+        pilot is meant to track a different source revision than what's already built.</p>
+
+      <h3>If a rebuild is actually needed</h3>
       <div class="snippet">
         <div class="snippet-label">shell</div>
-        <pre>./scripts/docker-build.sh .env.production.local &lt;new-tenant-image-tag&gt;</pre>
+        <pre>./scripts/docker-build.sh &lt;new-tenant-image-tag&gt;
+<span class="cm"># No build args to pass for tenant identity — there's nothing left to bake
+# except ALLOWED_IMAGE_DOMAINS, which needs a Dockerfile ARG added first
+# (documented, not yet implemented — see the Dockerfile's own header note).</span></pre>
       </div>
-      <p>Recommend the new tenant have their <strong>own</strong> Azure Container Registry —
-        cleaner separation for a genuinely different client engagement, even if reusing the
-        existing one is technically reachable given the right permissions.</p>
-      <p>The full release script bundles build + push + rollout together, but it's written
-        specifically against the current tenant's own ACR/App Service/resource-group names. For a
-        different tenant, either edit a copy of it with their values, or do the three steps by
-        hand:</p>
+      <p>Run the quality gate first regardless — <code>pnpm run test</code>,
+        <code>npx tsc --noEmit</code>, <code>pnpm run build</code> — see
+        <code>docs/operations/deployment.md</code> §1 for current pass-rate expectations.
+        <code>pnpm-lock.yaml</code> is a tracked, committed file as of 2026-09-16, so the Docker
+        build is finally reproducible from a clean clone rather than depending on whatever
+        lockfile happens to exist on the machine running <code>docker build</code>.</p>
+      <p>Recommend the new tenant have their <strong>own</strong> Azure Container Registry and App
+        Service — cleaner separation for a genuinely different client engagement, even when
+        reusing the exact same image artifact.</p>
+      <p><code>scripts/release.sh</code> automates build + push + rollout in one command, but it
+        is hardcoded to <em>this</em> tenant's own ACR/App Service/resource-group names
+        (<code>acfextension</code> / <code>acf-extention-2</code> / <code>ACF2</code>). For a
+        different tenant, either edit a copy of it with their values, or do the steps by hand:</p>
       <div class="snippet">
         <div class="snippet-label">shell</div>
-        <pre>docker tag &lt;new-tenant-image-tag&gt; &lt;their-acr-name&gt;.azurecr.io/&lt;image-name&gt;:&lt;tag&gt;
+        <pre>docker tag &lt;image&gt; &lt;their-acr-name&gt;.azurecr.io/&lt;image-name&gt;:&lt;tag&gt;
 az acr login --name &lt;their-acr-name&gt;
 docker push &lt;their-acr-name&gt;.azurecr.io/&lt;image-name&gt;:&lt;tag&gt;
 az webapp sitecontainers update --name &lt;their-app-service-name&gt; \
   --resource-group &lt;their-resource-group&gt; --container-name main \
   --image &lt;their-acr-name&gt;.azurecr.io/&lt;image-name&gt;:&lt;tag&gt;</pre>
       </div>
+      <div class="callout danger">
+        <span class="flag">Found this session — will bite you</span>
+        <div>
+          <p><code>scripts/release.sh</code>'s own post-build smoke check runs a bare
+            <code>curl … /api/config</code> and aborts the release unless it gets HTTP 200. But
+            <code>GET /api/config</code> gained a same-origin friction gate on 2026-09-03
+            (<code>app/api/config/route.ts</code>): it 404s any request without a matching
+            <code>Sec-Fetch-Site</code> header or an <code>Origin</code>/<code>Referer</code>
+            pointing at the same host — which is exactly what a bare <code>curl</code> is. This is
+            directly verified by that file's own test suite
+            (<code>route.test.ts</code>, "404s a bare request with no Sec-Fetch-* and no
+            Origin/Referer (a curl)").</p>
+          <p><strong>Net effect: <code>scripts/release.sh</code> as committed today will fail its
+            own check and refuse to push, every time.</strong> Before using it for this tenant
+            (or reusing a copy of it), either add
+            <code>-H "Sec-Fetch-Site: same-origin"</code> to that curl call, or fix the check to
+            accept the 404 as expected friction-gate behavior rather than a failure. Confirm this
+            is fixed before depending on the script for a real rollout — it hasn't been re-verified
+            end-to-end since the gate was added.</p>
+        </div>
+      </div>
     </section>
 
-    <section class="phase" id="phase-7">
+    <section class="phase" id="phase-8">
       <div class="phase-head">
-        <span class="phase-num">07</span>
+        <span class="phase-num">08</span>
         <h2 class="phase-title">Verify, end to end</h2>
       </div>
       <p>Check these off as you confirm them — state is kept locally in this browser only.</p>
       <ul class="checklist" id="verify-list">
-        <li><input type="checkbox" id="v1" /><label for="v1">Sign-in works: hits the new tenant's Microsoft login, redirects back correctly (confirms Phase 01 and the build-time values were correct in the image)</label></li>
-        <li><input type="checkbox" id="v2" /><label for="v2">Sidebar / menu renders (confirms Phase 02's Cosmos settings and Phase 03's document)</label></li>
-        <li><input type="checkbox" id="v3" /><label for="v3">A SQL report loads data (confirms Phase 04's SQL alias and Phase 05's login/permissions)</label></li>
-        <li><input type="checkbox" id="v4" /><label for="v4">A Cosmos report loads data (confirms Phase 04's Cosmos alias, or the default account)</label></li>
-        <li><input type="checkbox" id="v5" /><label for="v5">An API report loads data (confirms REPORTS_ALLOWED_HOSTS includes its endpoint's host)</label></li>
-        <li><input type="checkbox" id="v6" /><label for="v6">/profile shows the signed-in user's claims correctly (confirms the JWT audience/tenant match end to end)</label></li>
-        <li><input type="checkbox" id="v7" /><label for="v7">Devtools → Network — nothing 401/403 unexpected on /api/reports</label></li>
+        <li><input type="checkbox" id="v1" /><label for="v1">Sign-in works: hits the new tenant's Microsoft login, redirects back correctly (confirms Phase 01's Entra values reached the app as Application Settings)</label></li>
+        <li><input type="checkbox" id="v2" /><label for="v2">In the browser (not curl — see Phase 07's gate note): DevTools → Network shows <code>GET /api/config</code> returning 200 with the expected <code>NEXT_PUBLIC_*</code> values and no server-secret key names</label></li>
+        <li><input type="checkbox" id="v3" /><label for="v3">No 503s on <code>/api/*</code> calls (confirms Phase 04's access-control document exists and isn't fail-closing the whole app)</label></li>
+        <li><input type="checkbox" id="v4" /><label for="v4">Sidebar / menu renders (confirms Phase 02's Cosmos settings and Phase 03's document)</label></li>
+        <li><input type="checkbox" id="v5" /><label for="v5">A SQL report loads data (confirms Phase 05's <code>sql_alias_config</code> entry and Phase 06's login/permissions)</label></li>
+        <li><input type="checkbox" id="v6" /><label for="v6">A Cosmos report loads data (confirms Phase 05's <code>cosmos_alias_config</code> entry, or the default account)</label></li>
+        <li><input type="checkbox" id="v7" /><label for="v7">An API report loads data (confirms REPORTS_ALLOWED_HOSTS includes its endpoint's host)</label></li>
+        <li><input type="checkbox" id="v8" /><label for="v8">/profile shows the signed-in user's claims correctly (confirms the JWT audience/tenant match end to end)</label></li>
+        <li><input type="checkbox" id="v9" /><label for="v9">If Phase 01c's App Roles were configured: a privileged user reaches <code>/tools/config</code>; an unprivileged one is 403'd there</label></li>
       </ul>
     </section>
 
     <section class="phase" id="open">
       <h2 class="phase-title" style="margin-bottom: 1rem;">Open questions before calling this final</h2>
       <ul>
+        <li><strong>Fix or work around the <code>release.sh</code> smoke-check bug (Phase 07) before
+          relying on it</strong> — otherwise every release attempt will abort at the last step,
+          after the image is already built.</li>
         <li>Whether the pilot wants Managed Identity for Cosmos/SQL from day one, or plain
           key/password auth for simplicity now with a migration later.</li>
-        <li>Whether any report needs App Roles or role-gated visibility — nothing in the app
-          currently branches on the <code>roles</code> claim, so this only matters if specifically
-          requested.</li>
+        <li>Whether any report/tooling needs the config-builder UI or docs tree
+          (<code>NEXT_PUBLIC_PRIVILEGED_ROLES</code> + App Roles, Phase 01c) — skip entirely if
+          nobody needs <code>/tools/config</code>.</li>
+        <li>Whether the pilot needs custom branding beyond what <code>/api/config</code> already
+          covers at runtime — a custom favicon specifically has no supported path today (Phase 02).</li>
+        <li>Whether to give the new tenant a dedicated ACR/App Service (recommended) or reuse this
+          project's own — and, either way, whether to reuse the already-built image outright or
+          rebuild once against a pinned source revision for the engagement.</li>
         <li>Confirm with whoever owns the new tenant's SQL Server what else already lives on it
           before granting <code>db_datareader</code> broadly.</li>
       </ul>
@@ -880,8 +1077,8 @@ az webapp sitecontainers update --name &lt;their-app-service-name&gt; \
 
     <footer class="doc-foot">
       Verified against source, not memory — every claim above traces to a specific file in the
-      repo. Not shipped documentation; promote relevant parts into the docs tree or an ADR if this
-      needs to become permanent guidance.
+      repo, re-checked 2026-09-16. Not shipped documentation; promote relevant parts into the docs
+      tree or an ADR if this needs to become permanent guidance.
     </footer>
   </main>
 </div>
@@ -890,7 +1087,7 @@ az webapp sitecontainers update --name &lt;their-app-service-name&gt; \
   (function () {
     try {
       var boxes = document.querySelectorAll('#verify-list input[type="checkbox"]');
-      var KEY = "tenant-field-guide-verify-v1";
+      var KEY = "tenant-field-guide-verify-v2";
       var saved = {};
       try { saved = JSON.parse(localStorage.getItem(KEY) || "{}"); } catch (e) {}
       boxes.forEach(function (box) {
