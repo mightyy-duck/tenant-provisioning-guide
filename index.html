@@ -553,6 +553,7 @@
       <a href="#top" class="active"><span class="num">·</span> Overview</a>
       <a href="#phase-1"><span class="num">01</span> App registrations</a>
       <a href="#phase-2"><span class="num">02</span> App Service env</a>
+      <a href="#mandatory-env"><span class="num">·</span> Mandatory env checklist</a>
       <a href="#phase-3"><span class="num">03</span> Web-config doc</a>
       <a href="#phase-4"><span class="num">04</span> Access-control doc</a>
       <a href="#phase-5"><span class="num">05</span> Alias-config docs</a>
@@ -752,6 +753,52 @@
             <tr><td><code>REPORTS_ALLOWED_HOSTS</code></td><td>Only if any report is API-type</td><td>Comma-separated hostname allowlist — an API report whose endpoint host isn't listed is rejected</td></tr>
           </tbody>
         </table>
+      </div>
+    </section>
+
+    <section class="phase" id="mandatory-env" style="scroll-margin-top: 2rem;">
+      <h2 class="phase-title" style="margin-bottom: 1rem;">Mandatory environment checklist</h2>
+      <p>The app-breaking subset of Phase 02's table, pulled out as a literal setup checklist —
+        check each one off as it's added to the new App Service's <strong>Configuration →
+        Application Settings</strong> and confirmed present. State is kept locally in this browser
+        only, same as Phase 08's verification checklist.</p>
+      <div class="callout danger">
+        <span class="flag">Why these and not the rest</span>
+        <p>Every item below either crashes the app outright (<code>middleware.ts</code> throws at
+          startup) or breaks a load-bearing feature with no fallback (client sign-in, the sidebar
+          menu, every report's alias resolution, or any rendered image). Everything else in Phase
+          02's table is optional, has a safe default, or only matters if a specific report type is
+          used — this list is deliberately narrower than that table.</p>
+      </div>
+      <ul class="checklist" id="mandatory-env-list">
+        <li><input type="checkbox" id="e1" /><label for="e1"><code>AZURE_TENANT_ID</code> — middleware throws at startup on every request without this</label></li>
+        <li><input type="checkbox" id="e2" /><label for="e2"><code>AZURE_CLIENT_ID</code> — same failure mode as above; the API registration's client ID, the JWT audience</label></li>
+        <li><input type="checkbox" id="e3" /><label for="e3"><code>NEXT_PUBLIC_TENANT_ID</code> — without it, client-side MSAL login throws (<code>Failed to construct 'URL': Invalid URL</code>) instead of redirecting to sign-in</label></li>
+        <li><input type="checkbox" id="e4" /><label for="e4"><code>NEXT_PUBLIC_CLIENTAPP_CLIENT_ID</code> — same failure mode; the SPA registration's client ID</label></li>
+        <li><input type="checkbox" id="e5" /><label for="e5"><code>NEXT_PUBLIC_API_SCOPE</code> — same failure mode; <code>api://&lt;api-client-id&gt;/access_as_user</code></label></li>
+        <li><input type="checkbox" id="e6" /><label for="e6"><code>NEXT_PUBLIC_CLIENT_LOOPBACK_URL</code> — same failure mode; must also be a registered redirect URI on the SPA registration (Phase 01a) or sign-in fails a second way even once this is set</label></li>
+        <li><input type="checkbox" id="e7" /><label for="e7"><code>NEXT_PUBLIC_BASE_URL</code> — the App Service's own https URL; used for config/redirect validation</label></li>
+        <li><input type="checkbox" id="e8" /><label for="e8"><code>COSMOS_ENDPOINT</code> — the sidebar menu, the access-control policy (Phase 04), and every report's alias config (Phase 05) all live in Cosmos; nothing meaningful renders without it</label></li>
+        <li><input type="checkbox" id="e9" /><label for="e9"><code>COSMOS_KEY</code> — same as above, unless <code>COSMOS_USE_MANAGED_IDENTITY=true</code> is set instead and the App Service's Managed Identity has been granted a Cosmos data-plane role</label></li>
+        <li><input type="checkbox" id="e10" /><label for="e10"><code>COSMOS_DATABASE_ID</code> — has a code default (<code>"config"</code>) but confirm it actually matches wherever Phase 03/04/05's documents were created</label></li>
+        <li><input type="checkbox" id="e11" /><label for="e11"><code>COSMOS_CONTAINER</code> — same caveat as above (default <code>"sidebar"</code>)</label></li>
+        <li><input type="checkbox" id="e12" /><label for="e12"><code>COSMOS_DOCUMENT_ID</code> — same caveat as above (default <code>sidebar-config</code>) — must match the sidebar document's own <code>id</code> field from Phase 03</label></li>
+        <li><input type="checkbox" id="e13" /><label for="e13"><code>ALLOWED_IMAGE_DOMAINS</code> — comma-separated bare hostnames (e.g. <code>images.unsplash.com,dummyjson.com</code>). Without it, every background image and every report <code>image</code>-column cell fails with a 400 (<code>"url" parameter is not allowed</code>).</label></li>
+      </ul>
+      <div class="callout">
+        <span class="flag">Changed since last revision (2026-09-18)</span>
+        <p><code>ALLOWED_IMAGE_DOMAINS</code> above is <strong>no longer a build-time
+          exception</strong> — Phase 02 and the thesis section above still describe the old
+          behavior. It was confirmed in production that setting it as an Application Setting on an
+          already-built image had no effect, because <code>next.config.js</code>'s own
+          <code>images.remotePatterns</code> is frozen in at <code>pnpm run build</code>. The fix:
+          every <code>next/image</code> call site now goes through <code>/api/image-proxy</code>
+          (<code>app/api/image-proxy/route.ts</code>), a plain dynamic route that re-checks this
+          env var per request — the same "set it, restart the container" model as
+          <code>REPORTS_ALLOWED_HOSTS</code>. So: set this as a plain Application Setting, restart
+          the App Service, no rebuild needed. (Phase 02's table and the thesis section's "two
+          narrow exceptions" claim need a follow-up edit to stop contradicting this — left as-is
+          here since fixing it was out of scope for this pass.)</p>
       </div>
     </section>
 
@@ -1084,24 +1131,26 @@ az webapp sitecontainers update --name &lt;their-app-service-name&gt; \
 </div>
 
 <script>
-  (function () {
+  function persistChecklist(listId, storageKey) {
     try {
-      var boxes = document.querySelectorAll('#verify-list input[type="checkbox"]');
-      var KEY = "tenant-field-guide-verify-v2";
+      var boxes = document.querySelectorAll('#' + listId + ' input[type="checkbox"]');
       var saved = {};
-      try { saved = JSON.parse(localStorage.getItem(KEY) || "{}"); } catch (e) {}
+      try { saved = JSON.parse(localStorage.getItem(storageKey) || "{}"); } catch (e) {}
       boxes.forEach(function (box) {
         if (saved[box.id]) box.checked = true;
         box.addEventListener("change", function () {
           try {
-            var state = JSON.parse(localStorage.getItem(KEY) || "{}");
+            var state = JSON.parse(localStorage.getItem(storageKey) || "{}");
             state[box.id] = box.checked;
-            localStorage.setItem(KEY, JSON.stringify(state));
+            localStorage.setItem(storageKey, JSON.stringify(state));
           } catch (e) {}
         });
       });
     } catch (e) {}
-  })();
+  }
+
+  persistChecklist("verify-list", "tenant-field-guide-verify-v2");
+  persistChecklist("mandatory-env-list", "tenant-field-guide-mandatory-env-v1");
 
   (function () {
     try {
