@@ -551,6 +551,7 @@
     </div>
     <nav id="railnav">
       <a href="#top" class="active"><span class="num">·</span> Overview</a>
+      <a href="#phase-0"><span class="num">00</span> Azure infrastructure</a>
       <a href="#phase-1"><span class="num">01</span> App registrations</a>
       <a href="#phase-2"><span class="num">02</span> App Service env</a>
       <a href="#mandatory-env"><span class="num">·</span> Mandatory env checklist</a>
@@ -638,6 +639,113 @@
         <code>NEXT_PUBLIC_PRIVILEGED_ROLES</code> — is read from <code>process.env</code> at
         runtime and lives purely as an Azure App Service Application Setting, changeable in
         seconds with no rebuild.</p>
+    </section>
+
+    <section class="phase" id="phase-0">
+      <div class="phase-head">
+        <span class="phase-num">00</span>
+        <h2 class="phase-title">Azure infrastructure</h2>
+      </div>
+      <p>Do this first — the Web App's URL is needed for the redirect URI in Phase 01. Every item
+        can be a new resource or an existing one; if reusing, check its configuration matches
+        what's listed here.</p>
+
+      <h3>0a · Resource group</h3>
+      <ul>
+        <li>One resource group in the target region to hold everything below.</li>
+      </ul>
+
+      <h3>0b · Virtual network</h3>
+      <ul>
+        <li><strong>Private Endpoint subnet</strong> — holds the ACR's private endpoint (0c) and
+          the SQL server's (Phase 06).</li>
+        <li><strong>Web App integration subnet</strong> — dedicated to the Web App, shared with
+          nothing else. Delegated to <code>Microsoft.Web/serverFarms</code> (the portal does this
+          when the subnet is selected in 0d). Size <code>/26</code> or larger.</li>
+        <li><strong>NSG</strong> — associate a basic NSG (new or existing) with each subnet. The
+          Web App subnet must be allowed outbound to the Private Endpoint subnet; the default
+          <code>AllowVnetOutBound</code> rule already covers this, so don't add a deny that
+          overrides it.</li>
+      </ul>
+
+      <h3>0c · Azure Container Registry</h3>
+      <ul>
+        <li><strong>SKU: Premium</strong> — required for Private Endpoints.</li>
+        <li><strong>Networking → Private access</strong> → create a private endpoint in the 0b
+          Private Endpoint subnet, with <strong>Integrate with private DNS zone</strong> → Yes
+          (<code>privatelink.azurecr.io</code>, linked to the VNet). Without the DNS zone the Web
+          App resolves the ACR's public IP and the pull is blocked.</li>
+        <li><strong>Networking → Public access</strong> → <strong>Selected networks</strong> → add
+          only the IPs that push images (e.g. the office IP).</li>
+        <li><strong>Access keys → Admin user</strong> — enable only if the Web App will pull with
+          admin credentials (0e).</li>
+      </ul>
+
+      <h3>0d · App Service plan and Web App</h3>
+      <div class="callout">
+        <span class="flag">Create with CLI / PowerShell</span>
+        <p>The portal defaults to a <em>secure unique default hostname</em>
+          (<code>&lt;name&gt;-&lt;hash&gt;.&lt;region&gt;-01.azurewebsites.net</code>), which can't
+          be changed after creation. Azure CLI / PowerShell create the plain
+          <code>&lt;name&gt;.azurewebsites.net</code> instead. Whichever hostname results is the
+          one to use for Phase 01a's redirect URI and
+          <code>NEXT_PUBLIC_CLIENT_LOOPBACK_URL</code>.</p>
+      </div>
+      <ul>
+        <li>App Service plan: <strong>Linux</strong>, Basic tier or higher (needed for VNet
+          integration).</li>
+        <li>Web App: publish as <strong>Container</strong> (Linux). Creation requires an image —
+          use a public placeholder; the ACR can't be reached until the networking below is
+          done. It's switched to sidecar mode and pointed at the real image in 0e.</li>
+      </ul>
+      <div class="snippet">
+        <div class="snippet-label">azure cli</div>
+        <pre>az appservice plan create --name &lt;plan-name&gt; --resource-group &lt;rg&gt; \
+  --location &lt;region&gt; --is-linux --sku &lt;sku&gt;
+az webapp create --name &lt;app-name&gt; --resource-group &lt;rg&gt; --plan &lt;plan-name&gt; \
+  --container-image-name mcr.microsoft.com/appsvc/staticsite:latest</pre>
+      </div>
+
+      <h3>0e · Web App configuration</h3>
+      <ol>
+        <li><strong>Networking → Virtual network integration</strong> → select the 0b VNet and
+          Web App integration subnet.</li>
+        <li>In the same Virtual network integration settings, tick <strong>Container image
+          pull</strong>. Without it the image is pulled over the public internet and the ACR
+          rejects it.</li>
+        <li>If pulling with Managed Identity (recommended): <strong>Identity</strong> →
+          System assigned → On. Then on the ACR → <strong>Access control (IAM)</strong> → assign
+          <strong>AcrPull</strong> to the Web App's identity.</li>
+        <li><strong>Deployment Center</strong> → use the banner's <strong>Update</strong> to switch
+          the app to <strong>sidecar</strong> mode (mandatory — it's the only mode that lets the
+          container's port be set; the switch is one-way). Phase 07's
+          <code>az webapp sitecontainers update</code> also depends on it.</li>
+        <li><strong>Deployment Center → Containers</strong> → edit the <strong>main</strong>
+          container: Registry source: Azure Container Registry → Authentication:
+          <strong>Managed Identity</strong> (or <strong>Admin credentials</strong>, which needs
+          0c's Admin user enabled) → select the registry, image and tag → <strong>Port</strong>:
+          the port the app listens on → save.</li>
+      </ol>
+
+      <div class="callout">
+        <span class="flag">If adapting this setup</span>
+        <div>
+          <p>The steps above assume a standard all-Azure setup. Check these if the target
+            environment differs:</p>
+          <ul>
+            <li><strong>Cosmos public access restricted</strong> (Disabled / Selected networks) —
+              add a Cosmos private endpoint in the same Private Endpoint subnet, with the
+              <code>privatelink.documents.azure.com</code> DNS zone.</li>
+            <li><strong>Custom DNS servers on the VNet</strong> — they must forward
+              <code>privatelink.azurecr.io</code> and <code>privatelink.database.windows.net</code>
+              (and Cosmos's, if used), or the ACR pull and SQL connection resolve to public IPs
+              and fail.</li>
+            <li><strong>Outbound routed through a firewall</strong> — allow the Web App out to
+              <code>login.microsoftonline.com</code>, Cosmos (if reached publicly) and every host
+              in <code>REPORTS_ALLOWED_HOSTS</code>.</li>
+          </ul>
+        </div>
+      </div>
     </section>
 
     <section class="phase" id="phase-1">
@@ -976,15 +1084,21 @@
         <h2 class="phase-title">SQL Server access</h2>
       </div>
       <p>Worth being deliberate here, not just "make it connect" — see the security note at the
-        end. Unchanged in substance from the last revision.</p>
+        end. Updated since the last revision: SQL is now reached through a private endpoint, and
+        Managed Identity is the recommended auth model.</p>
 
       <h3>Network</h3>
-      <p>If it's Azure SQL, the firewall needs a rule letting the App Service reach it — either
-        "Allow Azure services and resources to access this server" (broad, simplest for a pilot)
-        or the App Service's specific outbound IPs (tighter, more setup).</p>
+      <p>The Web App reaches SQL through its VNet integration (Phase 00), which only works if the
+        SQL server has a private endpoint in that VNet. If it doesn't have one yet:</p>
+      <ul>
+        <li>SQL server → <strong>Networking → Private access</strong> → create a private endpoint
+          in Phase 00's <strong>Private Endpoint subnet</strong> — the same subnet as the ACR's.</li>
+        <li><strong>Integrate with private DNS zone</strong> → Yes
+          (<code>privatelink.database.windows.net</code>, linked to the VNet).</li>
+      </ul>
 
       <h3>Choose an auth model per alias</h3>
-      <p><strong>SQL login</strong> — simpler, recommended for a pilot:</p>
+      <p><strong>SQL login</strong> — alternative, if Managed Identity isn't possible:</p>
       <div class="snippet">
         <div class="snippet-label">sql · on the target server, then database</div>
         <pre>CREATE LOGIN acfreport_reader WITH PASSWORD = '&lt;strong password&gt;';
@@ -994,11 +1108,21 @@ CREATE USER acfreport_reader FOR LOGIN acfreport_reader;</pre>
       <p>That login/password is exactly what goes into the alias's <code>sqlUser</code>/
         <code>sqlPassword</code> fields (Phase 05).</p>
 
-      <p><strong>Managed Identity</strong> — more setup, no password to manage. Requires the SQL
-        Server to have an Azure AD admin configured first:</p>
+      <p><strong>Managed Identity</strong> — recommended, no password to manage. Before running the commands
+        below:</p>
+      <ul>
+        <li>The Web App's managed identity must already be on (<strong>Identity → System
+          assigned → On</strong>, Phase 00 0e). SQL can't find the identity otherwise.</li>
+        <li>The SQL server must have a Microsoft Entra admin set.</li>
+        <li>Whoever runs the commands must be signed in with a Microsoft Entra account (not a SQL
+          login) and have dbo / owner rights on the target database. If you don't, send the
+          commands to the SQL administrator to run.</li>
+      </ul>
       <div class="snippet">
         <div class="snippet-label">sql · inside the target database</div>
-        <pre>CREATE USER [&lt;app-service-name&gt;] FROM EXTERNAL PROVIDER;
+        <pre><span class="cm">-- The user name must be exactly the Web App's name.</span>
+CREATE USER [&lt;app-service-name&gt;] FROM EXTERNAL PROVIDER;
+<span class="cm">-- Read-only access.</span>
 ALTER ROLE db_datareader ADD MEMBER [&lt;app-service-name&gt;];</pre>
       </div>
       <p>Omit <strong>both</strong> <code>sqlUser</code> and <code>sqlPassword</code> on that alias
