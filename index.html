@@ -651,7 +651,9 @@
 
       <h3>1a · SPA registration — public client, sign-in only, no secret</h3>
       <ul>
-        <li>Redirect URI (SPA platform): the new tenant's real App Service URL, e.g.
+        <li>Redirect URI — portal path: SPA registration → <strong>Authentication</strong> →
+          <strong>Add a platform</strong> → <strong>Single-page application</strong> → add the
+          URIs. Values: the new tenant's real App Service URL, e.g.
           <code>https://&lt;their-app-name&gt;.azurewebsites.net</code> — and
           <code>http://localhost:3000</code> if anyone will run this checkout locally against
           their tenant. This is a portal setting now, not a build input — changing it later needs
