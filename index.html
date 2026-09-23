@@ -647,7 +647,9 @@
       </div>
       <p>Two registrations, in the <strong>new tenant</strong>, per <a class="inline-link"
         href="#" onclick="return false;">ADR-001</a> (App Registration Split) — unchanged in
-        substance since the last revision of this guide.</p>
+        substance since the last revision of this guide. Create both with <strong>Supported
+        account types</strong> → <strong>Accounts in this organizational directory only</strong>
+        (single tenant).</p>
 
       <h3>1a · SPA registration — public client, sign-in only, no secret</h3>
       <ul>
@@ -667,7 +669,10 @@
       <ul>
         <li><strong>Expose an API</strong> → set an Application ID URI (the default
           <code>api://&lt;api-client-id&gt;</code> is fine) → add a scope named exactly
-          <code>access_as_user</code>.</li>
+          <code>access_as_user</code>, <strong>Who can consent</strong> → <strong>Admins and
+          users</strong>.</li>
+        <li><strong>Manifest</strong> → inside the <code>api</code> object, set
+          <code>requestedAccessTokenVersion</code> to <code>2</code> → save.</li>
         <li><strong>Certificates &amp; secrets</strong> → a client secret only if local dev needs
           the <code>DefaultAzureCredential</code>/<code>EnvironmentCredential</code> fallback path
           — production should use Managed Identity instead and can leave this unset.</li>
