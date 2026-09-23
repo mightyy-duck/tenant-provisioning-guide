@@ -676,8 +676,10 @@
         <li><strong>Certificates &amp; secrets</strong> → a client secret only if local dev needs
           the <code>DefaultAzureCredential</code>/<code>EnvironmentCredential</code> fallback path
           — production should use Managed Identity instead and can leave this unset.</li>
-        <li>Back on the SPA registration → <strong>API permissions</strong> → add this
-          registration's <code>access_as_user</code> delegated permission → then clear the consent
+        <li>Back on the SPA registration → <strong>API permissions</strong> → <strong>Add a
+          permission</strong> → <strong>My APIs</strong> → select the API registration created
+          above → <strong>Delegated permissions</strong> → tick <code>access_as_user</code> →
+          <strong>Add permissions</strong> → then clear the consent
           prompt for it using <strong>one</strong> of these two options:
           <ul>
             <li><strong>Option A · Grant admin consent.</strong> A Global Administrator of the new
