@@ -670,7 +670,22 @@
           the <code>DefaultAzureCredential</code>/<code>EnvironmentCredential</code> fallback path
           — production should use Managed Identity instead and can leave this unset.</li>
         <li>Back on the SPA registration → <strong>API permissions</strong> → add this
-          registration's <code>access_as_user</code> delegated permission → grant admin consent.</li>
+          registration's <code>access_as_user</code> delegated permission → then clear the consent
+          prompt for it using <strong>one</strong> of these two options:
+          <ul>
+            <li><strong>Option A · Grant admin consent.</strong> A Global Administrator of the new
+              tenant clicks <strong>Grant admin consent for &lt;tenant&gt;</strong> on the SPA
+              registration's API permissions page. Covers every permission listed there in one
+              step.</li>
+            <li><strong>Option B · Pre-authorize the SPA (no GA needed).</strong> This is done on
+              the <strong>API registration (1b)</strong>, <em>not</em> the SPA registration. Open
+              the API registration → <strong>Expose an API</strong> → scroll to the
+              <strong>Authorized client applications</strong> section (below the scopes list) →
+              <strong>Add a client application</strong> → enter the SPA registration's Client ID →
+              tick the <code>access_as_user</code> scope created above → save. Users are then never
+              asked to consent to <code>access_as_user</code>.</li>
+          </ul>
+        </li>
       </ul>
 
       <h3>1c · App Roles — now conditionally required, not always skippable</h3>
